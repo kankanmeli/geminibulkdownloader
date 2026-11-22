@@ -225,6 +225,12 @@ F6. Add a build step only if bundling becomes necessary (currently none needed).
 - A2 (faster scroll scan: 1.5x step, 400ms delay).
 - D2 (chrome.storage progress persist/resume), D4 (per-image log lines),
   D5 (Stop button), D6 (broadened download selector + innerText fallback).
+- E1 (status labels beside images), E2 (badge counter via background),
+  E3 (Retry Failed button), E4 (exponential backoff), E5 (skip already-downloaded
+  via persisted keys), E6 (TESTING.md).
+- F1 (utils.js pure helpers + node tests), F2 (async while-loop processQueue),
+  F3 (eslint/prettier + package.json), F4 (CHANGELOG.md), F5 (research note),
+  F6 (no build step, documented).
 
 ### Suggested first batch (high impact / low-medium effort)
 B1, B2, B5, C1, C3, D1, D2, F2.

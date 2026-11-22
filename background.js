@@ -67,6 +67,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true; // Keep message channel open for async response
     }
 
+    if (request.command === "update_badge") {
+        try {
+            const text = (request.text == null || request.text === '') ? '' : String(request.text);
+            chrome.action.setBadgeText({ text: text });
+            if (text) chrome.action.setBadgeBackgroundColor({ color: '#b31412' });
+        } catch (e) {}
+        sendResponse({ status: "success" });
+        return true;
+    }
+
     if (request.command === "detach") {
         const tabId = sender && sender.tab ? sender.tab.id : null;
         if (tabId != null) {
