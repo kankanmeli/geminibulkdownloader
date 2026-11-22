@@ -370,6 +370,7 @@
         isPaused = false;
         isSkipping = false;
         isFastForward = false;
+        startBtn.innerText = "Start Queue";
         startBtn.disabled = true;
         startBtn.style.opacity = '0.5';
         pauseBtn.disabled = false;
@@ -437,11 +438,27 @@
             if (isStopped) { isStopped = false; return; }
 
             while (true) {
-                if (isStopped) { isStopped = false; break; }
+                if (isStopped) {
+                    isStopped = false;
+                    isPaused = false;
+                    isSkipping = false;
+                    stopButtonObserver();
+                    try { chrome.runtime.sendMessage({command: "detach"}); } catch (e) {}
+                    statusText.innerText = "Stopped.";
+                    startBtn.disabled = false;
+                    startBtn.style.opacity = '1';
+                    startBtn.innerText = "Start Queue";
+                    loadBtn.disabled = false;
+                    pauseBtn.disabled = true;
+                    pauseBtn.style.opacity = '0.5';
+                    retryFailedBtn.disabled = false;
+                    return;
+                }
                 while (isPaused) {
                     statusText.innerText = "Paused.";
                     await sleep(1000);
                     if (isStopped) { isStopped = false; return; }
+                    if (isSkipping) break;
                 }
 
                 const wasDirty = buttonsDirty;
@@ -481,7 +498,7 @@
                 let skippedNow = false;
 
                 while (!ready && (Date.now() - waitStart) < maxWaitMs) {
-                    while (isPaused) { await sleep(1000); if (isStopped) { isStopped=false; return; } }
+                    while (isPaused) { await sleep(1000); if (isStopped) { isStopped=false; return; } if (isSkipping) { break; } }
                     if (isStopped) { isStopped = false; return; }
 
                     if (isSkipping) {
@@ -609,6 +626,8 @@
         }
         log(`Retrying ${count} failed image(s).`);
         statusText.innerText = `Retrying ${count} failed...`;
+        isPaused = false;
+        isStopped = false;
         startBtn.disabled = true;
         startBtn.style.opacity = '0.5';
         pauseBtn.disabled = false;
