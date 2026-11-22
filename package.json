@@ -1,14 +1,15 @@
 {
   "name": "gemini-bulk-image-downloader",
-  "version": "4.1.0",
+  "version": "5.0.0",
   "private": true,
   "scripts": {
     "lint": "eslint *.js",
     "format": "prettier -w *.js",
-    "test": "node tests/utils.test.js"
+    "test": "node tests/utils.test.js",
+    "sync-version": "node scripts/sync-version.js"
   },
   "devDependencies": {
-    "eslint": "^8.57.0",
+    "eslint": "^10.0.0",
     "prettier": "^3.3.0"
   }
 }

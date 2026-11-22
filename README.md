@@ -1,79 +1,58 @@
 Gemini Bulk Image Downloader (Auto-Pilot Pro) 🤖📸
 
-A powerful Chrome Extension designed to bulk download high-resolution images from Google Gemini chats.
-
-Unlike standard bookmarklets or scripts which get blocked by browser security (User Activation protections), this extension uses the Chrome Debugger API to simulate physical hardware clicks, ensuring 100% reliable downloads for large batches.
+A Chrome Extension (Manifest V3) that bulk-downloads high-resolution images from Google Gemini chats and the "My Stuff" gallery. It uses the Chrome Debugger API to simulate real hardware clicks, bypassing browser user-activation restrictions.
 
 🚀 Features
 
-True Automation: Downloads hundreds of images without user intervention.
+- True automation: download many images without manual clicks.
+- Readiness-based queue: waits for Gemini's high-res button instead of a fixed 35 s timer.
+- Auto-scroll scanner ("Load All") for lazy-loaded history.
+- Rich stats: Done / Skipped / Failed / Left / Rate / ETA.
+- Per-image status labels: Pending, Downloading, Low-res, Done, Skipped, Failed.
+- Pro controls: Pause/Resume, Skip, Force DL, Stop, Retry Failed.
+- Selection mode: pick specific images, then "Download Selected".
+- Resume: per-image completion is persisted in chrome.storage.
+- Real dedupe: skips images already present in Chrome's download history.
+- Low-res detection: waits briefly for full-size images.
+- Post-download organize: saves into a per-conversation dated subfolder.
+- Badge states: remaining count (red), paused (amber), done (green), error (red).
+- Completion toast + "Open Folder" button.
+- SPA navigation handling: stops cleanly when Gemini changes views.
+- Gallery support: opens each "My Stuff" card, downloads from the modal, closes it.
+- i18n panel (en/es/fr/de/hi/ja) with locale-independent selectors.
 
-Universal Support: Works on standard chats and the "My Stuff" / Gallery pages.
+📂 Project structure
 
-Smart Queue:
-
-Auto-Scroll Scanner: "Load All" button finds images hidden in scroll history.
-
-Dynamic Timer: Calculates estimated completion time based on remaining items.
-
-Stats Dashboard: Real-time counters for Current, Remaining, and Total images.
-
-Pro Controls:
-
-⏯️ Pause/Resume: Take a break without losing progress.
-
-⏭️ Skip: Skip specific images if they are stuck.
-
-⚡ Force Next: Instantly skip the wait timer if an image generates early.
-
-Anti-Block Technology: Uses low-level input simulation to prevent Chrome from flagging downloads as spam.
-
-📂 Project Structure
-
-manifest.json: Configuration file (Manifest V3) requesting debugger permissions.
-
-background.js: Handles the low-level click simulation commands.
-
-content.js: The main logic that scans the DOM, manages the UI panel, and coordinates the queue.
+- manifest.json — MV3 config and permissions.
+- background.js — debugger clicks/keys, badge, dedupe, folder open, download organization.
+- content.js — UI, scanning, queue, selection, gallery flow, stats.
+- utils.js — pure helpers (also unit-tested in Node).
+- tests/utils.test.js — Node tests for pure helpers.
+- AGENTS.md — handoff notes.
+- TESTING.md — manual test checklist.
+- CHANGELOG.md — version history.
 
 🛠️ Installation
 
-Since this uses advanced developer APIs, it is not available on the Chrome Web Store. You must install it manually:
+1. Clone/download this folder.
+2. Open chrome://extensions and enable Developer mode.
+3. Click "Load unpacked" and select this folder.
 
-Download or Clone this repository to a folder on your computer (e.g., gemini-downloader).
+📖 How to use
 
-Open Google Chrome and navigate to chrome://extensions.
+1. Open a Gemini chat with generated images (or the Images / My Stuff page).
+2. Click the floating "⬇️ Auto-Pilot Pro" button.
+3. Click "Load All" to scan, then "Start Queue".
+4. Optional: "Select" → click images → "Download Selected".
+5. Use Pause/Skip/Force/Stop as needed; "Retry Failed" re-queues failures.
+6. "Open Folder" reveals downloads; "Reset" clears run + dedupe state.
 
-Enable Developer mode using the toggle in the top-right corner.
+⚠️ Notes
 
-Click the Load unpacked button in the top-left.
-
-Select the folder where you saved these files.
-
-📖 How to Use
-
-Navigate to a Google Gemini chat containing generated images.
-
-You will see a floating red button: ⬇️ Auto-Pilot Pro.
-
-Step 1: Click "Load All"
-
-This automatically scrolls the page top-to-bottom to ensure all images are rendered and detected.
-
-Step 2: Click "Start Queue"
-
-The extension will highlight images in red (detected), yellow (processing), and green (done).
-
-Note: You will see a browser banner saying "Gemini Bulk Image Downloader started debugging this browser". This is normal and required for the click simulation.
-
-Sit back and relax! The tool waits ~35 seconds per image (to allow high-res generation) and downloads them one by one.
-
-⚠️ Important Notes
-
-Keep the Tab Open: For best performance, keep the Gemini tab visible on your screen. Minimizing the window may cause Chrome to slow down background timers.
-
-The 35s Delay: Gemini takes time to generate the high-resolution URL after a click. The 35-second delay is intentional to prevent downloading low-res thumbnails or empty files. You can use the "Force DL ⏭️" button if an image loads faster.
+- Chrome shows a "started debugging this browser" banner while the queue runs; this is required for click simulation.
+- Keep the Gemini tab open/visible for reliable timing.
+- Downloads are organized into a subfolder named after the conversation + date.
 
 🤝 Disclaimer
 
-This project is for educational purposes only. It is not affiliated with, endorsed by, or connected to Google or Gemini. Use responsibly and ensure you adhere to Google's Terms of Service.
+Educational purposes only; not affiliated with Google. Use responsibly and follow Google's Terms of Service.

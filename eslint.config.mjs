@@ -15,10 +15,14 @@ export default [
         document: 'readonly',
         window: 'readonly',
         location: 'readonly',
+        navigator: 'readonly',
         setTimeout: 'readonly',
         clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
         MutationObserver: 'readonly',
-        navigator: 'readonly'
+        getComputedStyle: 'readonly',
+        isFinite: 'readonly'
       }
     },
     rules: {
