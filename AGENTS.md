@@ -130,3 +130,92 @@ After editing JS, click the reload icon on the extension card and refresh the Ge
 - Keep changes minimal and focused; prefer editing existing files.
 - After edits, reload extension + refresh Gemini tab to verify manually.
 - Report what was checked; do not claim tests passed (none exist).
+
+## 14. Deep scrutiny / audit backlog (for review)
+
+Produced by inspecting the live Gemini DOM (via BrowserOS neo) and the extension
+source. Items are grouped; pick any subset to implement.
+
+### A. Speed
+A1. Reduce post-click delay from 3000 ms to ~1000 ms; readiness polling on the
+    next button covers generation wait. (Low risk, faster throughput.)
+A2. Make scroll scan faster: increase step to 1.5x viewport and reduce per-step
+    delay from 600 ms to 400 ms; keep a final settle. (Medium risk: may miss
+    lazy images on slow connections.)
+A3. Poll readiness every 500 ms instead of 1000 ms for quicker click-after-ready.
+    (Low risk.)
+A4. Avoid re-querying the whole DOM each loop: cache button list and refresh via
+    a MutationObserver (see C4). (Medium.)
+A5. Keep debugger attached across the whole run instead of attach-per-click
+    (background already avoids detach; ensure no redundant attach errors). (Low.)
+
+### B. Quality / reliability
+B1. Add try/catch around processLoop body and surface errors in the log instead
+    of silently stopping. (High value.)
+B2. Add per-button retry cap (e.g. 3) then auto-skip, to avoid infinite loops
+    when a button never enables. (High value.)
+B3. Guard background.js: if `sender.tab` is undefined, respond with error instead
+    of throwing. (Medium.)
+B4. Check `chrome.runtime.lastError` in sendCommand callbacks; abort click on
+    failure rather than proceeding. (Medium.)
+B5. Wait for scroll to settle before computing click coords: use
+    `behavior: 'instant'` or await `scrollend` event. Current smooth scroll can
+    cause off-target clicks. (High value.)
+B6. Detach debugger on queue completion (and on tab close) to remove the
+    "started debugging" banner. (Low risk, better UX.)
+B7. Use `button.disabled` plus class check for readiness (done) but also verify
+    the button is not `aria-disabled="true"`. (Low.)
+
+### C. Issues / bugs
+C1. `processedCount` increments before success; failures/retries skew stats.
+    Increment only on successful click. (Medium.)
+C2. `totalFound` can grow mid-run and stats jump; snapshot it at Start Queue.
+    (Low.)
+C3. Skip path calls `processLoop()` recursively without awaiting; can stack up.
+    Convert to iterative loop or await. (Medium.)
+C4. No handling of dynamically added images (infinite scroll / new messages).
+    Add MutationObserver to append new download buttons. (Medium.)
+C5. No handling of page navigation/unload mid-run; queue keeps running on a
+    dead document. Add `beforeunload`/visibility guard. (Medium.)
+C6. The `.crx` artifact is committed with spaces in filename; consider removing
+    from git or renaming. (Low.)
+C7. Manifest has no icons; Chrome shows default. (Low.)
+
+### D. Enhancements
+D1. Configurable max-wait / delay via the panel (input + persist in
+    chrome.storage). (Medium.)
+D2. Persist queue progress (chrome.storage) so a reload resumes. (Medium.)
+D3. Add Pause/Resume keyboard shortcut. (Low.)
+D4. Show per-image status (pending/ready/clicked/failed) in the log. (Low.)
+D5. Add a "Stop" button distinct from Pause. (Low.)
+D6. Verify/extend selector to "My Stuff" gallery, which may use a different
+    test-id. (Medium.)
+D7. Dark/light theme support for the panel. (Low.)
+
+### E. Additions
+E1. Options page for defaults (delay, retries, scroll speed). (Medium.)
+E2. Badge counter on extension icon showing remaining count. (Low.)
+E3. Export run log to a text file. (Low.)
+E4. Retry-with-backoff for failed clicks. (Medium.)
+E5. Check chrome.downloads history to skip already-downloaded images (requires
+    "downloads" permission). (Medium.)
+E6. Add minimal manual test checklist in repo (TESTING.md). (Low.)
+
+### F. Revisions / architecture
+F1. Extract pure helpers (getButtons filter, formatTime) for testability.
+    (Medium.)
+F2. Replace recursive processLoop with an async for-loop for clarity. (Medium.)
+F3. Add ESLint + Prettier config and a lint script. (Low.)
+F4. Add versioning/changelog convention and bump manifest version. (Low.)
+F5. Research fetching blob: URLs directly and saving via chrome.downloads to
+    remove the debugger permission and banner. (High effort.)
+F6. Add a build step only if bundling becomes necessary (currently none needed).
+
+### G. Already done
+- Precise selector via data-test-id. (e22e110)
+- Readiness-based wait instead of fixed 35 s. (e22e110)
+- AGENTS.md handoff doc + .gitignore. (45e5163)
+- README exists (user-facing).
+
+### Suggested first batch (high impact / low-medium effort)
+B1, B2, B5, C1, C3, D1, D2, F2.
