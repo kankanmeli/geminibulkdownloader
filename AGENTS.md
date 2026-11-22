@@ -216,6 +216,9 @@ F6. Add a build step only if bundling becomes necessary (currently none needed).
 - Readiness-based wait instead of fixed 35 s. (e22e110)
 - AGENTS.md handoff doc + .gitignore. (45e5163)
 - README exists (user-facing).
+- A1, A3, A4, A5. (cffba49)
+- B1 (try/catch), B2 (retry cap), B3 (sender.tab guard), B4 (lastError checks),
+  B5 (instant scroll), B6 (detach on completion), B7 (aria-disabled check).
 
 ### Suggested first batch (high impact / low-medium effort)
 B1, B2, B5, C1, C3, D1, D2, F2.

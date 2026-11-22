@@ -200,9 +200,13 @@
     // Gemini disables the button (mat-mdc-button-disabled / gem-button-disabled)
     // until the full-size image has been generated, so we can use this instead
     // of a fixed wait.
+    function getRetries(btn) { return parseInt((btn && btn.getAttribute('data-ext-retries')) || '0', 10); }
+    function incRetries(btn) { const n = getRetries(btn) + 1; if (btn) btn.setAttribute('data-ext-retries', String(n)); return n; }
+
     function isButtonReady(btn) {
         if (!btn) return false;
         if (btn.disabled) return false;
+        if (btn.getAttribute('aria-disabled') === 'true') return false;
         const cls = ((btn.className || '') + ' ' + ((btn.parentElement && btn.parentElement.className) || '')).toLowerCase();
         if (cls.includes('disabled')) return false;
         const rect = btn.getBoundingClientRect();
@@ -309,6 +313,7 @@
     }
 
     async function processLoop() {
+        try {
         while (isPaused) {
             statusText.innerText = "Paused.";
             await new Promise(r => setTimeout(r, 1000));
@@ -322,6 +327,7 @@
         
         if (!nextTarget) {
             stopButtonObserver();
+            try { chrome.runtime.sendMessage({command: "detach"}); } catch (e) {}
             statusText.innerText = "All downloads finished!";
             updateStats(processedCount, totalFound); 
             document.getElementById('stat-left').innerText = "0";
@@ -334,7 +340,7 @@
         processedCount++;
         updateStats(processedCount, totalFound);
         
-        nextTarget.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        nextTarget.scrollIntoView({ behavior: 'instant', block: 'center' });
         nextTarget.style.border = "3px solid #fbbc04"; // Yellow
         
         // Readiness-based wait: Gemini disables the download button until the
@@ -382,6 +388,21 @@
             return;
         }
 
+        if (!ready) {
+            const retries = incRetries(nextTarget);
+            log(`Img ${processedCount}: not ready after wait (retry ${retries}).`);
+            if (retries >= 3) {
+                log(`Skipped Image ${processedCount} after ${retries} timeouts.`);
+                nextTarget.setAttribute('data-ext-done', 'true');
+                nextTarget.style.border = "2px solid #6B7280";
+                setTimeout(processLoop, 1000);
+                return;
+            }
+            statusText.innerText = "Not ready. Retrying...";
+            setTimeout(processLoop, 5000);
+            return;
+        }
+
         log(`Img ${processedCount}: Clicking via Debugger...`);
         statusText.innerText = `Img ${processedCount}: DOWNLOADING...`;
         
@@ -400,10 +421,23 @@
                 nextTarget.style.backgroundColor = "rgba(52, 168, 83, 0.1)";
                 setTimeout(processLoop, 1000);
             } else {
-                log("Debugger Error: " + (response ? response.msg : "Unknown"));
+                const retries = incRetries(nextTarget);
+                log("Debugger Error: " + (response ? response.msg : "Unknown") + " (retry " + retries + ")");
+                if (retries >= 3) {
+                    log(`Skipped Image ${processedCount} after ${retries} failures.`);
+                    nextTarget.setAttribute('data-ext-done', 'true');
+                    nextTarget.style.border = "2px solid #6B7280";
+                    setTimeout(processLoop, 1000);
+                    return;
+                }
                 statusText.innerText = "Error. Retrying...";
-                setTimeout(processLoop, 5000); 
+                setTimeout(processLoop, 5000);
             }
         });
+        } catch (e) {
+            log("Error: " + (e && e.message ? e.message : e));
+            statusText.innerText = "Error. Retrying...";
+            setTimeout(processLoop, 5000);
+        }
     }
 })();

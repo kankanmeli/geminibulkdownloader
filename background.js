@@ -66,6 +66,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
         return true; // Keep message channel open for async response
     }
+
+    if (request.command === "detach") {
+        const tabId = sender && sender.tab ? sender.tab.id : null;
+        if (tabId != null) {
+            try { chrome.debugger.detach({ tabId: tabId }); } catch (e) {}
+            attachedTabs.delete(tabId);
+        }
+        sendResponse({status: "success"});
+        return true;
+    }
 });
 
 // Clean up tracking if a tab is closed or navigated away.
