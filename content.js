@@ -178,27 +178,35 @@
     }
 
     // --- IMPROVED SELECTOR FOR MY STUFF ---
+    // Returns true when a download button is actually clickable (high-res ready).
+    // Gemini disables the button (mat-mdc-button-disabled / gem-button-disabled)
+    // until the full-size image has been generated, so we can use this instead
+    // of a fixed wait.
+    function isButtonReady(btn) {
+        if (!btn) return false;
+        if (btn.disabled) return false;
+        const cls = ((btn.className || '') + ' ' + ((btn.parentElement && btn.parentElement.className) || '')).toLowerCase();
+        if (cls.includes('disabled')) return false;
+        const rect = btn.getBoundingClientRect();
+        return !(rect.width === 0 && rect.height === 0);
+    }
+
     function getButtons() {
-        // Query for standard buttons, links, and elements with tooltips
-        const selector = 'button, a, [role="button"]';
-        const allElements = Array.from(document.querySelectorAll(selector));
-        
+        // Preferred: Gemini exposes a stable data-test-id on the download control.
+        const preferred = Array.from(document.querySelectorAll('[data-test-id="download-generated-image-button"]'))
+            .map(w => w.querySelector('button') || w)
+            .filter(b => b && b.getBoundingClientRect && !(b.getBoundingClientRect().width === 0 && b.getBoundingClientRect().height === 0));
+        if (preferred.length) return preferred;
+
+        // Fallback: aria/title/tooltip contains "download" (older layouts / gallery).
+        const allElements = Array.from(document.querySelectorAll('button, a, [role="button"]'));
         return allElements.filter(el => {
-            // Check Aria Label
-            const aria = el.getAttribute('aria-label') ? el.getAttribute('aria-label').toLowerCase() : '';
-            // Check Title
-            const title = el.getAttribute('title') ? el.getAttribute('title').toLowerCase() : '';
-            // Check Tooltip (common in Google Galleries)
-            const tooltip = el.getAttribute('data-tooltip') ? el.getAttribute('data-tooltip').toLowerCase() : '';
-
+            const aria = (el.getAttribute('aria-label') || '').toLowerCase();
+            const title = (el.getAttribute('title') || '').toLowerCase();
+            const tooltip = (el.getAttribute('data-tooltip') || '').toLowerCase();
             const isDownload = aria.includes('download') || title.includes('download') || tooltip.includes('download');
-            
             if (!isDownload) return false;
-            
-            // Garbage filter
             if (aria.includes('csv') || aria.includes('json') || aria.includes('code')) return false;
-
-            // Visibility Check
             const rect = el.getBoundingClientRect();
             return !(rect.width === 0 && rect.height === 0);
         });
@@ -305,35 +313,49 @@
         nextTarget.scrollIntoView({ behavior: 'smooth', block: 'center' });
         nextTarget.style.border = "3px solid #fbbc04"; // Yellow
         
-        let remaining = CONFIG_DELAY / 1000;
-        if (processedCount === 1) remaining = 2; 
+        // Readiness-based wait: Gemini disables the download button until the
+        // full-size image is ready, so poll its disabled state instead of a
+        // fixed 35s countdown. CONFIG_DELAY acts as a max wait / fallback.
+        const maxWaitMs = CONFIG_DELAY;
+        const waitStart = Date.now();
+        let ready = isButtonReady(nextTarget);
 
-        while (remaining > 0) {
+        while (!ready && (Date.now() - waitStart) < maxWaitMs) {
             while (isPaused) { await new Promise(r => setTimeout(r, 1000)); }
-            
-            const subsequentTime = (remainingItemsCount - 1) * CONFIG_DELAY;
-            const currentTime = remaining * 1000;
-            timeDiv.innerText = `Est. Time: ${formatTime(subsequentTime + currentTime)}`;
 
             if (isSkipping) {
                 log(`Skipped Image ${processedCount}.`);
                 isSkipping = false;
                 nextTarget.setAttribute('data-ext-done', 'true');
-                nextTarget.style.border = "2px solid #6B7280"; 
+                nextTarget.style.border = "2px solid #6B7280";
                 processLoop();
                 return;
             }
-            
+
             if (isFastForward) {
                 log("Fast forward...");
                 isFastForward = false;
-                remaining = 0; 
+                ready = true;
                 break;
             }
 
-            statusText.innerText = `Img ${processedCount}: Generating... ${remaining}s`;
+            const elapsedMs = Date.now() - waitStart;
+            const leftMs = Math.max(0, maxWaitMs - elapsedMs);
+            const subsequentTime = (remainingItemsCount - 1) * CONFIG_DELAY;
+            statusText.innerText = `Img ${processedCount}: Waiting for high-res... ${Math.ceil(leftMs / 1000)}s`;
+            timeDiv.innerText = `Est. Time: ${formatTime(subsequentTime + leftMs)}`;
+
             await new Promise(r => setTimeout(r, 1000));
-            remaining--;
+            ready = isButtonReady(nextTarget);
+        }
+
+        if (isSkipping) {
+            log(`Skipped Image ${processedCount}.`);
+            isSkipping = false;
+            nextTarget.setAttribute('data-ext-done', 'true');
+            nextTarget.style.border = "2px solid #6B7280";
+            processLoop();
+            return;
         }
 
         log(`Img ${processedCount}: Clicking via Debugger...`);

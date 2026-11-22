@@ -83,9 +83,11 @@ After editing JS, click the reload icon on the extension card and refresh the Ge
 - No lint/format config present.
 
 ## 9. Known issues / limitations
-- `getButtons()` relies on English-ish "download" labels; may miss localized or
-  differently-labeled controls.
-- Hardcoded 35 s delay; not configurable from UI.
+- `getButtons()` now prefers Gemini's stable `data-test-id="download-generated-image-button"`
+  selector, falling back to the aria/title/tooltip "download" filter. Localized
+  labels are still covered by the data-test-id path.
+- Max wait `CONFIG_DELAY` (35 s) is now a fallback cap; primary trigger is the
+  download button becoming enabled (readiness-based). Still not user-configurable.
 - No persistence: reload loses queue state.
 - `.crx` binary committed; no `.gitignore` previously (now added for OS junk).
 - No icons declared in manifest (Chrome shows default).
@@ -114,9 +116,13 @@ After editing JS, click the reload icon on the extension card and refresh the Ge
 - Push only when user authorizes.
 
 ## 12. Current status (where we left off)
-- Repo freshly cloned into the working folder; clean working tree on `main`.
-- No in-progress edits. Handoff docs (this file + .gitignore) being added.
-- Next action: await user direction on which backlog item or bug to tackle.
+- Enhanced `content.js` based on live Gemini DOM inspection via BrowserOS neo:
+  - `getButtons()` now uses `[data-test-id="download-generated-image-button"]`.
+  - Added `isButtonReady()` reading the button's disabled state.
+  - Replaced fixed 35 s countdown with readiness polling (CONFIG_DELAY = max wait).
+- Verified extension injects and panel works on a real Gemini chat with images.
+- Queue run in progress/tested on chat "MuleSoft Support Work Anniversary".
+- Next action: await user direction; consider committing/pushing when approved.
 
 ## 13. Handoff notes for agents
 - Read this file first, then `manifest.json`, `background.js`, `content.js`.
