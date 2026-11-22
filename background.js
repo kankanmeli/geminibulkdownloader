@@ -3,6 +3,70 @@
 
 const attachedTabs = new Set();
 let downloadPrefix = '';
+let downloadPrefixTabId = null;
+let prefixRestored = false;
+
+function persistPrefix() {
+    try {
+        if (chrome.storage && chrome.storage.session) {
+            chrome.storage.session.set({ geminiDownloadPrefix: downloadPrefix, geminiDownloadPrefixTabId: downloadPrefixTabId });
+        }
+    } catch (e) {}
+}
+
+// Survive service-worker restarts during long runs.
+try {
+    if (chrome.storage && chrome.storage.session) {
+        chrome.storage.session.get(['geminiDownloadPrefix', 'geminiDownloadPrefixTabId'], (res) => {
+            if (prefixRestored || !res) return;
+            downloadPrefix = res.geminiDownloadPrefix || '';
+            downloadPrefixTabId = res.geminiDownloadPrefixTabId == null ? null : res.geminiDownloadPrefixTabId;
+        });
+    }
+} catch (e) {}
+
+function clearPrefixForTab(tabId) {
+    if (tabId != null && downloadPrefixTabId !== tabId) return;
+    downloadPrefix = '';
+    downloadPrefixTabId = null;
+    persistPrefix();
+}
+
+function isGeminiReferrer(referrer) {
+    return /^https:\/\/gemini\.google\.com\//i.test(referrer || '');
+}
+
+// Track downloads so a successful debugger click can be verified as a real download.
+const recentDownloads = [];
+const downloadWaiters = [];
+function normalizeStartTime(value) {
+    if (typeof value === 'number') return value;
+    const parsed = Date.parse(value);
+    return isFinite(parsed) ? parsed : 0;
+}
+function noteDownload(item) {
+    if (!item) return;
+    const entry = {
+        id: item.id,
+        url: item.url || '',
+        filename: item.filename || '',
+        referrer: item.referrer || '',
+        startTime: normalizeStartTime(item.startTime) || Date.now(),
+        state: item.state || 'in_progress'
+    };
+    recentDownloads.push(entry);
+    if (recentDownloads.length > 50) recentDownloads.shift();
+    for (let i = downloadWaiters.length - 1; i >= 0; i--) {
+        const waiter = downloadWaiters[i];
+        if (!waiter.match(entry)) continue;
+        clearTimeout(waiter.timer);
+        downloadWaiters.splice(i, 1);
+        waiter.resolve({ status: "success", found: true, download: entry });
+    }
+}
+if (chrome.downloads && chrome.downloads.onCreated) {
+    chrome.downloads.onCreated.addListener(noteDownload);
+}
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.command === "simulate_click") {
@@ -20,32 +84,46 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         const debuggeeId = { tabId: tabId };
 
         const doClick = () => {
+            const press = () => {
+                chrome.debugger.sendCommand(debuggeeId, "Input.dispatchMouseEvent", {
+                    type: "mousePressed",
+                    x: x,
+                    y: y,
+                    button: "left",
+                    clickCount: 1
+                }, () => {
+                    if (chrome.runtime.lastError) {
+                        sendResponse({ status: "error", msg: chrome.runtime.lastError.message });
+                        return;
+                    }
+                    setTimeout(() => {
+                        chrome.debugger.sendCommand(debuggeeId, "Input.dispatchMouseEvent", {
+                            type: "mouseReleased",
+                            x: x,
+                            y: y,
+                            button: "left",
+                            clickCount: 1
+                        }, () => {
+                            if (chrome.runtime.lastError) {
+                                sendResponse({ status: "error", msg: chrome.runtime.lastError.message });
+                                return;
+                            }
+                            sendResponse({ status: "success" });
+                        });
+                    }, 50);
+                });
+            };
+            // Hover first so hover-revealed controls are active before the click.
             chrome.debugger.sendCommand(debuggeeId, "Input.dispatchMouseEvent", {
-                type: "mousePressed",
+                type: "mouseMoved",
                 x: x,
-                y: y,
-                button: "left",
-                clickCount: 1
+                y: y
             }, () => {
                 if (chrome.runtime.lastError) {
                     sendResponse({ status: "error", msg: chrome.runtime.lastError.message });
                     return;
                 }
-                setTimeout(() => {
-                    chrome.debugger.sendCommand(debuggeeId, "Input.dispatchMouseEvent", {
-                        type: "mouseReleased",
-                        x: x,
-                        y: y,
-                        button: "left",
-                        clickCount: 1
-                    }, () => {
-                        if (chrome.runtime.lastError) {
-                            sendResponse({ status: "error", msg: chrome.runtime.lastError.message });
-                            return;
-                        }
-                        sendResponse({ status: "success" });
-                    });
-                }, 50);
+                setTimeout(press, 60);
             });
         };
 
@@ -131,8 +209,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             return true;
         }
         try {
-            chrome.downloads.search({ url: url, state: "complete" }, (items) => {
-                sendResponse({ status: "success", found: !!(items && items.length) });
+            chrome.downloads.search({ url: url }, (items) => {
+                const found = !!(items && items.some((item) => item && (item.state === "complete" || item.state === "in_progress")));
+                sendResponse({ status: "success", found: found });
             });
         } catch (e) {
             sendResponse({ status: "success", found: false });
@@ -140,8 +219,47 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true;
     }
 
+    if (request.command === "wait_for_download") {
+        const since = Number(request.since) || 0;
+        const match = (entry) => {
+            if (!entry || entry.startTime < since) return false;
+            return isGeminiReferrer(entry.referrer) || !entry.referrer;
+        };
+        const existing = recentDownloads.find(match);
+        if (existing) {
+            sendResponse({ status: "success", found: true, download: existing });
+            return true;
+        }
+        let settled = false;
+        const waiter = {
+            match: match,
+            resolve: (result) => {
+                if (settled) return;
+                settled = true;
+                sendResponse(result);
+            }
+        };
+        const timeoutMs = Math.min(Math.max(Number(request.timeout) || 10000, 1000), 60000);
+        waiter.timer = setTimeout(() => {
+            if (settled) return;
+            const idx = downloadWaiters.indexOf(waiter);
+            if (idx >= 0) downloadWaiters.splice(idx, 1);
+            waiter.resolve({ status: "success", found: false });
+        }, timeoutMs);
+        downloadWaiters.push(waiter);
+        return true;
+    }
+
     if (request.command === "set_download_prefix") {
+        const tabId = sender && sender.tab ? sender.tab.id : null;
+        if (downloadPrefix && downloadPrefixTabId != null && tabId != null && downloadPrefixTabId !== tabId) {
+            sendResponse({ status: "busy", msg: "Another Gemini run is active" });
+            return true;
+        }
         downloadPrefix = (request.prefix || '').replace(/[\\/:*?"<>|]+/g, '_').trim();
+        downloadPrefixTabId = tabId;
+        prefixRestored = true;
+        persistPrefix();
         sendResponse({ status: "success" });
         return true;
     }
@@ -161,6 +279,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (tabId != null) {
             try { chrome.debugger.detach({ tabId: tabId }); } catch (e) {}
             attachedTabs.delete(tabId);
+            clearPrefixForTab(tabId);
         }
         sendResponse({ status: "success" });
         return true;
@@ -168,13 +287,20 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 // Organize completed downloads into a per-conversation subfolder.
+// Only touch downloads referred by Gemini; never move unrelated browser downloads.
 if (chrome.downloads && chrome.downloads.onDeterminingFilename) {
     chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
-        if (!downloadPrefix) {
+        const referrer = (item && item.referrer) || '';
+        const mime = (item && item.mime) || '';
+        const name = (item && item.filename || 'image').split(/[\\/]/).pop();
+        // Some Chromium builds (including BrowserOS) omit the referrer for
+        // page-initiated downloads. Only fall back for images while a Gemini
+        // run owns the prefix, so unrelated documents are never moved.
+        const fromGemini = isGeminiReferrer(referrer) || (!referrer && /^image\//i.test(mime));
+        if (!downloadPrefix || !fromGemini) {
             suggest();
             return;
         }
-        const name = (item.filename || 'image').split(/[\\/]/).pop();
         suggest({ filename: downloadPrefix + '/' + name, conflictAction: 'uniquify' });
     });
 }
@@ -183,7 +309,7 @@ if (chrome.downloads && chrome.downloads.onDeterminingFilename) {
 chrome.debugger.onDetach.addListener((source) => {
     if (source && source.tabId != null) attachedTabs.delete(source.tabId);
 });
-chrome.tabs.onRemoved.addListener((tabId) => { attachedTabs.delete(tabId); });
+chrome.tabs.onRemoved.addListener((tabId) => { attachedTabs.delete(tabId); clearPrefixForTab(tabId); });
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-    if (changeInfo.status === "loading") attachedTabs.delete(tabId);
+    if (changeInfo.status === "loading") { attachedTabs.delete(tabId); clearPrefixForTab(tabId); }
 });

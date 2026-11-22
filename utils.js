@@ -2,7 +2,7 @@
 // Loaded as a content script before content.js; also require()-able in Node.
 // @ts-check
 
-(function (root) {
+(function (/** @type {any} */ root) {
     const ns = {};
 
     /**

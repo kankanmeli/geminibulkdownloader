@@ -5,11 +5,18 @@
   "scripts": {
     "lint": "eslint *.js",
     "format": "prettier -w *.js",
-    "test": "node tests/utils.test.js",
+    "test": "node tests/utils.test.js && node tests/background.test.js && node tests/integration.test.js",
+    "test:unit": "node tests/utils.test.js",
+    "test:background": "node tests/background.test.js",
+    "test:integration": "node tests/integration.test.js",
+    "typecheck": "tsc -p jsconfig.json --noEmit",
     "sync-version": "node scripts/sync-version.js"
   },
   "devDependencies": {
+    "@types/node": "^26.6.6",
     "eslint": "^10.0.0",
-    "prettier": "^3.3.0"
+    "jsdom": "^31.0.1",
+    "prettier": "^3.3.0",
+    "typescript": "^7.0.2"
   }
 }

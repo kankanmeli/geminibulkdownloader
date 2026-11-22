@@ -28,8 +28,10 @@ A Chrome Extension (Manifest V3) that bulk-downloads high-resolution images from
 - content.js — UI, scanning, queue, selection, gallery flow, stats.
 - utils.js — pure helpers (also unit-tested in Node).
 - tests/utils.test.js — Node tests for pure helpers.
+- tests/background.test.js — mocked Chrome service-worker tests.
+- tests/integration.test.js — jsdom content-script/queue tests.
 - AGENTS.md — handoff notes.
-- TESTING.md — manual test checklist.
+- TESTING.md — automated commands + manual test checklist.
 - CHANGELOG.md — version history.
 
 🛠️ Installation

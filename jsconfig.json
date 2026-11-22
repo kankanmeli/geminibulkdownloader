@@ -7,8 +7,10 @@
     "module": "commonjs",
     "noEmit": true,
     "skipLibCheck": true,
-    "strict": false
+    "maxNodeModuleJsDepth": 0,
+    "strict": false,
+    "types": ["node"]
   },
-  "include": ["utils.js", "tests/**/*.js", "types/**/*.d.ts"],
+  "include": ["utils.js", "tests/utils.test.js", "types/**/*.d.ts"],
   "exclude": ["node_modules", "content.js", "background.js", "eslint.config.mjs"]
 }
