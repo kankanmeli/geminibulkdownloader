@@ -13,3 +13,6 @@ Desktop.ini
 # Node (if tooling added later)
 node_modules/
 npm-debug.log*
+
+# Packaged artifacts
+*.crx

@@ -219,6 +219,12 @@ F6. Add a build step only if bundling becomes necessary (currently none needed).
 - A1, A3, A4, A5. (cffba49)
 - B1 (try/catch), B2 (retry cap), B3 (sender.tab guard), B4 (lastError checks),
   B5 (instant scroll), B6 (detach on completion), B7 (aria-disabled check).
+- C1 (processedCount on success), C2 (totalFound snapshot + dirty-gated growth),
+  C3 (skip via setTimeout), C4 (MutationObserver invalidation), C5 (beforeunload
+  guard), C6 (untrack .crx + .gitignore). C7 (icons) skipped: no icon assets.
+- A2 (faster scroll scan: 1.5x step, 400ms delay).
+- D2 (chrome.storage progress persist/resume), D4 (per-image log lines),
+  D5 (Stop button), D6 (broadened download selector + innerText fallback).
 
 ### Suggested first batch (high impact / low-medium effort)
 B1, B2, B5, C1, C3, D1, D2, F2.

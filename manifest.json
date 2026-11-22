@@ -5,7 +5,8 @@
   "description": "Bulk download from Chat and My Stuff using Debugger API.",
   "permissions": [
     "activeTab",
-    "debugger"
+    "debugger",
+    "storage"
   ],
   "background": {
     "service_worker": "background.js"

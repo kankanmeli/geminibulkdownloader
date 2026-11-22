@@ -10,6 +10,7 @@
     let isPaused = false;
     let isSkipping = false;
     let isFastForward = false;
+    let isStopped = false;
     let processedCount = 0;
     let totalFound = 0;
 
@@ -17,6 +18,35 @@
     let cachedButtons = null;
     let buttonsDirty = true;
     let buttonObserver = null;
+
+    // --- STORAGE HELPERS (D2) ---
+    function storageKey() { return 'gemini-dl-progress:' + location.href; }
+    function saveProgress(count) {
+        try {
+            if (chrome && chrome.storage && chrome.storage.local) {
+                const obj = {}; obj[storageKey()] = count;
+                chrome.storage.local.set(obj);
+            }
+        } catch (e) {}
+    }
+    function loadProgress() {
+        return new Promise((resolve) => {
+            try {
+                if (chrome && chrome.storage && chrome.storage.local) {
+                    chrome.storage.local.get(storageKey(), (res) => {
+                        resolve((res && typeof res[storageKey()] === 'number') ? res[storageKey()] : 0);
+                    });
+                    return;
+                }
+            } catch (e) {}
+            resolve(0);
+        });
+    }
+    function clearProgress() {
+        try {
+            if (chrome && chrome.storage && chrome.storage.local) chrome.storage.local.remove(storageKey());
+        } catch (e) {}
+    }
 
     function invalidateButtons() { buttonsDirty = true; cachedButtons = null; }
 
@@ -163,6 +193,15 @@
         log("Skipping current image...");
     });
 
+    const stopBtn = createBtn('Stop', '#DC2626', () => {
+        if (startBtn.disabled) {
+            isStopped = true;
+            isPaused = false;
+            log("Stopped by user.");
+            statusText.innerText = "Stopped.";
+        }
+    });
+
     const loadBtn = createBtn('Load All', '#374151', autoScrollScan);
     
     const forceBtn = createBtn('Force DL ⏭️', '#059669', () => {
@@ -176,6 +215,7 @@
     controls.appendChild(pauseBtn);
     controls.appendChild(forceBtn);
     controls.appendChild(skipBtn);
+    controls.appendChild(stopBtn);
     panel.appendChild(controls);
 
     root.appendChild(panel);
@@ -216,8 +256,8 @@
     function getButtons() {
         if (!buttonsDirty && cachedButtons) return cachedButtons;
         // Preferred: Gemini exposes a stable data-test-id on the download control.
-        const preferred = Array.from(document.querySelectorAll('[data-test-id="download-generated-image-button"]'))
-            .map(w => w.querySelector('button') || w)
+        const preferred = Array.from(document.querySelectorAll('[data-test-id="download-generated-image-button"], [data-test-id*="download"]'))
+            .map(w => (w.tagName === 'BUTTON' ? w : (w.querySelector('button') || w)))
             .filter(b => b && b.getBoundingClientRect && !(b.getBoundingClientRect().width === 0 && b.getBoundingClientRect().height === 0));
         const result = preferred.length ? preferred : (function() {
             const allElements = Array.from(document.querySelectorAll('button, a, [role="button"]'));
@@ -225,7 +265,8 @@
                 const aria = (el.getAttribute('aria-label') || '').toLowerCase();
                 const title = (el.getAttribute('title') || '').toLowerCase();
                 const tooltip = (el.getAttribute('data-tooltip') || '').toLowerCase();
-                const isDownload = aria.includes('download') || title.includes('download') || tooltip.includes('download');
+                const text = ((el.innerText || el.textContent) || '').toLowerCase();
+                const isDownload = aria.includes('download') || title.includes('download') || tooltip.includes('download') || text.includes('download');
                 if (!isDownload) return false;
                 if (aria.includes('csv') || aria.includes('json') || aria.includes('code')) return false;
                 const rect = el.getBoundingClientRect();
@@ -252,22 +293,22 @@
         loadBtn.innerText = "Scanning...";
 
         window.scrollTo(0, 0);
-        await new Promise(r => setTimeout(r, 1000));
+        await new Promise(r => setTimeout(r, 800));
 
         log("Scrolling down...");
         let totalHeight = document.body.scrollHeight;
         let currentScroll = 0;
-        const step = window.innerHeight;
+        const step = Math.floor(window.innerHeight * 1.5);
 
         while (currentScroll < totalHeight) {
             window.scrollTo(0, currentScroll);
-            await new Promise(r => setTimeout(r, 600));
+            await new Promise(r => setTimeout(r, 400));
             currentScroll += step;
             totalHeight = document.body.scrollHeight;
         }
 
         window.scrollTo(0, document.body.scrollHeight);
-        await new Promise(r => setTimeout(r, 1000));
+        await new Promise(r => setTimeout(r, 800));
 
         const btns = getButtons();
         totalFound = btns.length;
@@ -283,6 +324,8 @@
     }
 
     async function startQueue() {
+        isStopped = false;
+        isPaused = false;
         startBtn.disabled = true;
         startBtn.style.opacity = '0.5';
         pauseBtn.disabled = false;
@@ -302,25 +345,43 @@
         }
 
         btns.forEach(b => b.style.border = "2px solid #ea4335");
-        
+
+        // D2: resume from saved progress
+        const saved = await loadProgress();
+        if (saved > 0 && saved <= btns.length) {
+            let marked = 0;
+            for (const b of btns) {
+                if (marked >= saved) break;
+                b.setAttribute('data-ext-done', 'true');
+                b.style.border = "2px solid #34a853";
+                b.style.backgroundColor = "rgba(52, 168, 83, 0.1)";
+                marked++;
+            }
+            if (marked) log(`Resumed: ${marked} already done.`);
+        }
+
         const msg = `Detected ${totalFound} images. Starting...`;
         log(msg);
         statusText.innerText = msg;
         updateStats(0, totalFound);
         
         startButtonObserver();
+        try { window.addEventListener('beforeunload', () => { stopButtonObserver(); try { chrome.runtime.sendMessage({command: 'detach'}); } catch (e) {} }, { once: true }); } catch (e) {}
         processLoop();
     }
 
     async function processLoop() {
         try {
+        if (!document || !document.body) return;
+        if (isStopped) { isStopped = false; return; }
         while (isPaused) {
             statusText.innerText = "Paused.";
             await new Promise(r => setTimeout(r, 1000));
         }
 
+        const wasDirty = buttonsDirty;
         const currentButtons = getButtons();
-        if (currentButtons.length > totalFound) totalFound = currentButtons.length;
+        if (wasDirty && currentButtons.length > totalFound) totalFound = currentButtons.length;
         
         const nextTarget = currentButtons.find(btn => btn.getAttribute('data-ext-done') !== 'true');
         const remainingItemsCount = currentButtons.filter(b => b.getAttribute('data-ext-done') !== 'true').length;
@@ -328,8 +389,9 @@
         if (!nextTarget) {
             stopButtonObserver();
             try { chrome.runtime.sendMessage({command: "detach"}); } catch (e) {}
+            clearProgress();
             statusText.innerText = "All downloads finished!";
-            updateStats(processedCount, totalFound); 
+            updateStats(totalFound, totalFound);
             document.getElementById('stat-left').innerText = "0";
             timeDiv.innerText = `Est. Time: 0m 0s`;
             log("Queue complete.");
@@ -337,8 +399,8 @@
             return;
         }
 
-        processedCount++;
-        updateStats(processedCount, totalFound);
+        const itemNum = currentButtons.filter(b => b.getAttribute('data-ext-done') === 'true').length + 1;
+        updateStats(itemNum, totalFound);
         
         nextTarget.scrollIntoView({ behavior: 'instant', block: 'center' });
         nextTarget.style.border = "3px solid #fbbc04"; // Yellow
@@ -354,11 +416,11 @@
             while (isPaused) { await new Promise(r => setTimeout(r, 1000)); }
 
             if (isSkipping) {
-                log(`Skipped Image ${processedCount}.`);
+                log(`Skipped Image ${itemNum}.`);
                 isSkipping = false;
                 nextTarget.setAttribute('data-ext-done', 'true');
                 nextTarget.style.border = "2px solid #6B7280";
-                processLoop();
+                setTimeout(processLoop, 0);
                 return;
             }
 
@@ -372,7 +434,7 @@
             const elapsedMs = Date.now() - waitStart;
             const leftMs = Math.max(0, maxWaitMs - elapsedMs);
             const subsequentTime = (remainingItemsCount - 1) * CONFIG_DELAY;
-            statusText.innerText = `Img ${processedCount}: Waiting for high-res... ${Math.ceil(leftMs / 1000)}s`;
+            statusText.innerText = `Img ${itemNum}: Waiting for high-res... ${Math.ceil(leftMs / 1000)}s`;
             timeDiv.innerText = `Est. Time: ${formatTime(subsequentTime + leftMs)}`;
 
             await new Promise(r => setTimeout(r, 500));
@@ -384,15 +446,15 @@
             isSkipping = false;
             nextTarget.setAttribute('data-ext-done', 'true');
             nextTarget.style.border = "2px solid #6B7280";
-            processLoop();
+            setTimeout(processLoop, 0);
             return;
         }
 
         if (!ready) {
             const retries = incRetries(nextTarget);
-            log(`Img ${processedCount}: not ready after wait (retry ${retries}).`);
+            log(`Img ${itemNum}: not ready after wait (retry ${retries}).`);
             if (retries >= 3) {
-                log(`Skipped Image ${processedCount} after ${retries} timeouts.`);
+                log(`Skipped Image ${itemNum} after ${retries} timeouts.`);
                 nextTarget.setAttribute('data-ext-done', 'true');
                 nextTarget.style.border = "2px solid #6B7280";
                 setTimeout(processLoop, 1000);
@@ -403,8 +465,8 @@
             return;
         }
 
-        log(`Img ${processedCount}: Clicking via Debugger...`);
-        statusText.innerText = `Img ${processedCount}: DOWNLOADING...`;
+        log(`Img ${itemNum}: Clicking via Debugger...`);
+        statusText.innerText = `Img ${itemNum}: DOWNLOADING...`;
         
         const rect = nextTarget.getBoundingClientRect();
         const clickX = rect.left + (rect.width / 2);
@@ -419,19 +481,23 @@
                 nextTarget.setAttribute('data-ext-done', 'true');
                 nextTarget.style.border = "2px solid #34a853"; 
                 nextTarget.style.backgroundColor = "rgba(52, 168, 83, 0.1)";
-                setTimeout(processLoop, 1000);
+                processedCount = itemNum;
+                updateStats(processedCount, totalFound);
+                log(`Img ${itemNum}: downloaded.`);
+                saveProgress(processedCount);
+                if (!isStopped) setTimeout(processLoop, 1000);
             } else {
                 const retries = incRetries(nextTarget);
                 log("Debugger Error: " + (response ? response.msg : "Unknown") + " (retry " + retries + ")");
                 if (retries >= 3) {
-                    log(`Skipped Image ${processedCount} after ${retries} failures.`);
+                    log(`Skipped Image ${itemNum} after ${retries} failures.`);
                     nextTarget.setAttribute('data-ext-done', 'true');
                     nextTarget.style.border = "2px solid #6B7280";
                     setTimeout(processLoop, 1000);
                     return;
                 }
                 statusText.innerText = "Error. Retrying...";
-                setTimeout(processLoop, 5000);
+                if (!isStopped) setTimeout(processLoop, 5000);
             }
         });
         } catch (e) {
