@@ -13,6 +13,24 @@
     let processedCount = 0;
     let totalFound = 0;
 
+    // --- BUTTON CACHE (A4) ---
+    let cachedButtons = null;
+    let buttonsDirty = true;
+    let buttonObserver = null;
+
+    function invalidateButtons() { buttonsDirty = true; cachedButtons = null; }
+
+    function startButtonObserver() {
+        if (buttonObserver) return;
+        buttonObserver = new MutationObserver(() => { buttonsDirty = true; });
+        try { buttonObserver.observe(document.body, { childList: true, subtree: true }); } catch (e) { /* ignore */ }
+    }
+
+    function stopButtonObserver() {
+        if (buttonObserver) { try { buttonObserver.disconnect(); } catch (e) {} buttonObserver = null; }
+        invalidateButtons();
+    }
+
     // --- UI CONSTRUCTION ---
     const root = document.createElement('div');
     root.id = 'gemini-ext-root';
@@ -192,24 +210,27 @@
     }
 
     function getButtons() {
+        if (!buttonsDirty && cachedButtons) return cachedButtons;
         // Preferred: Gemini exposes a stable data-test-id on the download control.
         const preferred = Array.from(document.querySelectorAll('[data-test-id="download-generated-image-button"]'))
             .map(w => w.querySelector('button') || w)
             .filter(b => b && b.getBoundingClientRect && !(b.getBoundingClientRect().width === 0 && b.getBoundingClientRect().height === 0));
-        if (preferred.length) return preferred;
-
-        // Fallback: aria/title/tooltip contains "download" (older layouts / gallery).
-        const allElements = Array.from(document.querySelectorAll('button, a, [role="button"]'));
-        return allElements.filter(el => {
-            const aria = (el.getAttribute('aria-label') || '').toLowerCase();
-            const title = (el.getAttribute('title') || '').toLowerCase();
-            const tooltip = (el.getAttribute('data-tooltip') || '').toLowerCase();
-            const isDownload = aria.includes('download') || title.includes('download') || tooltip.includes('download');
-            if (!isDownload) return false;
-            if (aria.includes('csv') || aria.includes('json') || aria.includes('code')) return false;
-            const rect = el.getBoundingClientRect();
-            return !(rect.width === 0 && rect.height === 0);
-        });
+        const result = preferred.length ? preferred : (function() {
+            const allElements = Array.from(document.querySelectorAll('button, a, [role="button"]'));
+            return allElements.filter(el => {
+                const aria = (el.getAttribute('aria-label') || '').toLowerCase();
+                const title = (el.getAttribute('title') || '').toLowerCase();
+                const tooltip = (el.getAttribute('data-tooltip') || '').toLowerCase();
+                const isDownload = aria.includes('download') || title.includes('download') || tooltip.includes('download');
+                if (!isDownload) return false;
+                if (aria.includes('csv') || aria.includes('json') || aria.includes('code')) return false;
+                const rect = el.getBoundingClientRect();
+                return !(rect.width === 0 && rect.height === 0);
+            });
+        })();
+        cachedButtons = result;
+        buttonsDirty = false;
+        return cachedButtons;
     }
 
     function formatTime(ms) {
@@ -269,6 +290,7 @@
         if (totalFound === 0) {
             log("No images found. Try 'Load All'?");
             statusText.innerText = "No images found.";
+            stopButtonObserver();
             startBtn.disabled = false;
             startBtn.style.opacity = '1';
             loadBtn.disabled = false;
@@ -282,6 +304,7 @@
         statusText.innerText = msg;
         updateStats(0, totalFound);
         
+        startButtonObserver();
         processLoop();
     }
 
@@ -298,6 +321,7 @@
         const remainingItemsCount = currentButtons.filter(b => b.getAttribute('data-ext-done') !== 'true').length;
         
         if (!nextTarget) {
+            stopButtonObserver();
             statusText.innerText = "All downloads finished!";
             updateStats(processedCount, totalFound); 
             document.getElementById('stat-left').innerText = "0";
@@ -345,7 +369,7 @@
             statusText.innerText = `Img ${processedCount}: Waiting for high-res... ${Math.ceil(leftMs / 1000)}s`;
             timeDiv.innerText = `Est. Time: ${formatTime(subsequentTime + leftMs)}`;
 
-            await new Promise(r => setTimeout(r, 1000));
+            await new Promise(r => setTimeout(r, 500));
             ready = isButtonReady(nextTarget);
         }
 
@@ -374,7 +398,7 @@
                 nextTarget.setAttribute('data-ext-done', 'true');
                 nextTarget.style.border = "2px solid #34a853"; 
                 nextTarget.style.backgroundColor = "rgba(52, 168, 83, 0.1)";
-                setTimeout(processLoop, 3000);
+                setTimeout(processLoop, 1000);
             } else {
                 log("Debugger Error: " + (response ? response.msg : "Unknown"));
                 statusText.innerText = "Error. Retrying...";
