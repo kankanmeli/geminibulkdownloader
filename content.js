@@ -676,7 +676,7 @@
 
     function currentPrefix() {
         const raw = (document.title || 'Gemini').replace(/ - Google Gemini.*/i, '').trim();
-        const safe = raw.replace(/[\\/:*?"<>|]+/g, '_').slice(0, 60) || 'Gemini';
+        const safe = raw.replace(/[\x00-\x1F\x7F\\/:*?"<>|]+/g, '_').slice(0, 60) || 'Gemini';
         const d = new Date();
         const stamp = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
         return `${safe}_${stamp}`;
