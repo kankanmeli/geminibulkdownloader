@@ -413,7 +413,7 @@
     header.style.justifyContent = 'space-between';
     header.style.alignItems = 'center';
     const title = document.createElement('div');
-    title.innerText = `${t('title')} v5.0`;
+    title.innerText = `${t('title')} v5.1.0`;
     title.style.fontWeight = 'bold';
     const closeBtn = document.createElement('div');
     closeBtn.innerText = '✕';
