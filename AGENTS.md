@@ -60,8 +60,8 @@ Bulk-downloads high-resolution images from Google Gemini chats and the "My Stuff
 - "Select" toggles selection mode; clicking an image container toggles `data-ext-selected` + blue outline.
 - "Download Selected" sets `run.selectedOnly` and queues only selected targets.
 
-## 5. Key state (`content.js`)
-- `run` controller: `running`, `paused`, `skipRequested`, `fastForward`, `stopRequested`, `selectedOnly`, `startedAt`.
+## 5. Key state (`extension/content.js`)
+- `run` controller: `running`, `paused`, `skipRequested`, `fastForward`, `stopRequested`, `selectedOnly`, `startedAt`, `activeTarget`, `outcomes`, `targetKeys`.
 - `galleryMode`, `selectionMode`, `totalFound`, `downloadedKeys`, `runStatus`, `logLines`.
 - Button cache: `cachedButtons`, `buttonsDirty`, `buttonObserver` (MutationObserver invalidates).
 - `CONFIG`: timings/retry/log/dedupe limits (single source of truth).
@@ -75,7 +75,8 @@ Per-image state is stored on the element:
 - `{ command: "simulate_click", x, y }` → `{ status: "success" | "error", msg? }`
 - `{ command: "simulate_key", key: "Escape" }` → same
 - `{ command: "update_badge", text, color }`
-- `{ command: "check_downloaded", url }` → `{ found: boolean }`
+- `{ command: "check_downloaded", url }` → `{ status: "success", found: boolean }`
+- `{ command: "wait_for_download", since, timeout }` → `{ status: "success", found: boolean, download? }`
 - `{ command: "set_download_prefix", prefix }`
 - `{ command: "open_downloads_folder" }`
 - `{ command: "detach" }`
@@ -83,13 +84,13 @@ Per-image state is stored on the element:
 Debugger stays attached for the batch; detached on finish/stop/unload or user detach (`chrome.debugger.onDetach`).
 
 ## 7. Run / test
-- Automated: `npm test`, `npm run lint`, `node --check *.js`.
+- Automated: `npm test` (runs all 5 test suites: unit, background, integration, security, adversarial-concurrency), `npm run lint`, `npm run typecheck`, `node --check extension/*.js`.
 - Manual: see `TESTING.md`.
 - Reload the extension and refresh the Gemini tab after editing.
 
 ## 8. Conventions
 - Plain JS, no bundler. 4-space indent. Inline `cssText` panel styles.
-- Pure helpers go in `utils.js` and get a test.
+- Pure helpers go in `extension/utils.js` and get a test.
 - Panel strings go through `t(key)` (i18n); selectors must stay locale-independent (`data-test-id`).
 - Version bump: edit `package.json`, run `npm run sync-version`.
 

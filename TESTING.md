@@ -1,14 +1,16 @@
 # Testing
 
 ## Automated
-- `npm test` — unit helpers + mocked background worker + jsdom content-script integration.
-- `npm run test:unit` — pure helper tests (`utils.js`).
-- `npm run test:background` — mocked Chrome service-worker tests.
-- `npm run test:integration` — jsdom DOM/queue tests for `content.js`.
-- `npm run typecheck` — TypeScript `checkJs` for `utils.js` + unit tests.
-- `npm run lint` — ESLint (flat config).
+- `npm test` — run all 5 test suites (140 tests: unit helpers, mocked background worker, jsdom content-script integration, filesystem security, adversarial concurrency).
+- `npm run test:unit` — pure helper tests (`extension/utils.js`).
+- `npm run test:background` — mocked Chrome service-worker tests (`tests/background.test.js`).
+- `npm run test:integration` — jsdom DOM/queue tests for `extension/content.js` (`tests/integration.test.js`).
+- `npm run test:security` — path traversal, Windows constraints, and history oracle protection tests (`tests/security.test.js`).
+- `npm run test:adversarial` — concurrency, state machine, and edge case tests (`tests/adversarial-concurrency.test.js`).
+- `npm run typecheck` — TypeScript `checkJs` for `extension/utils.js` + unit tests.
+- `npm run lint` — ESLint (flat config across runtime, scripts, and tests).
 - `node --check extension/content.js extension/background.js extension/utils.js` — syntax.
-- CI runs unit/background/integration tests, lint, and typecheck on push/PR.
+- CI runs unit/background/integration/security/adversarial tests, lint, and typecheck on push/PR.
 
 ## Manual (Chrome)
 1. Load unpacked; open a Gemini chat with generated images.

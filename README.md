@@ -23,16 +23,20 @@ A Chrome Extension (Manifest V3) that bulk-downloads high-resolution images from
 
 📂 Project structure
 
-- manifest.json — MV3 config and permissions.
-- background.js — debugger clicks/keys, badge, dedupe, folder open, download organization.
-- content.js — UI, scanning, queue, selection, gallery flow, stats.
-- utils.js — pure helpers (also unit-tested in Node).
-- tests/utils.test.js — Node tests for pure helpers.
-- tests/background.test.js — mocked Chrome service-worker tests.
-- tests/integration.test.js — jsdom content-script/queue tests.
-- AGENTS.md — handoff notes.
-- TESTING.md — automated commands + manual test checklist.
-- CHANGELOG.md — version history.
+- `extension/manifest.json` — MV3 config and permissions.
+- `extension/background.js` — debugger clicks/keys, badge, dedupe, folder open, download organization.
+- `extension/content.js` — UI, scanning, queue, selection, gallery flow, stats.
+- `extension/utils.js` — pure helpers (also unit-tested in Node).
+- `extension/icons/` — 16/48/128 PNG extension icons.
+- `tests/utils.test.js` — Node tests for pure helpers.
+- `tests/background.test.js` — mocked Chrome service-worker tests.
+- `tests/integration.test.js` — jsdom content-script/queue tests.
+- `tests/security.test.js` — filesystem security, Windows constraints & download oracle protection tests.
+- `tests/adversarial-concurrency.test.js` — adversarial concurrency, state machine & lifecycle tests.
+- `AGENTS.md` — handoff notes.
+- `TESTING.md` — automated commands + manual test checklist.
+- `CHANGELOG.md` — version history.
+- `LICENSE` — MIT license.
 
 🛠️ Installation
 

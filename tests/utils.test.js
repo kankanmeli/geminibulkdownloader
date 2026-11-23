@@ -2,8 +2,13 @@ const assert = require('assert');
 const U = require('../extension/utils.js');
 
 function test(name, fn) {
-    try { fn(); console.log('PASS', name); }
-    catch (e) { console.log('FAIL', name, '-', e.message); process.exitCode = 1; }
+    try {
+        fn();
+        console.log('PASS', name);
+    } catch (e) {
+        console.log('FAIL', name, '-', e.message);
+        process.exitCode = 1;
+    }
 }
 
 test('formatTime basic', () => {
@@ -48,6 +53,48 @@ test('isTerminalState', () => {
     assert.strictEqual(U.isTerminalState({ failed: true }), true);
     assert.strictEqual(U.isTerminalState({}), false);
     assert.strictEqual(U.isTerminalState(null), false);
+});
+
+test('sanitizePrefix handles traversal, reserved names, and length', () => {
+    assert.strictEqual(U.sanitizePrefix('../../../System32', 'Gemini'), 'System32');
+    assert.strictEqual(U.sanitizePrefix('..', 'Gemini'), 'Gemini');
+    assert.strictEqual(U.sanitizePrefix('CON', 'Gemini'), '_CON');
+    assert.strictEqual(U.sanitizePrefix('Windows...   ', 'Gemini'), 'Windows');
+    assert.strictEqual(U.sanitizePrefix('A'.repeat(100), 'Gemini', 64).length, 64);
+});
+
+test('sanitizeFilename handles traversal, reserved names, and length', () => {
+    assert.strictEqual(U.sanitizeFilename('..', 'image.png'), 'image.png');
+    assert.strictEqual(U.sanitizeFilename('folder/image:1.png', 'image.png'), 'image_1.png');
+    assert.strictEqual(U.sanitizeFilename('CON.png', 'image.png'), '_CON.png');
+    assert.strictEqual(U.sanitizeFilename('image.png. ', 'image.png'), 'image.png');
+    const long = U.sanitizeFilename('A'.repeat(200) + '.png', 'image.png', 100);
+    assert.strictEqual(long.length, 100);
+    assert.ok(long.endsWith('.png'));
+});
+
+test('isGeminiUrl and isGeminiDownload', () => {
+    assert.strictEqual(U.isGeminiUrl('https://gemini.google.com/app'), true);
+    assert.strictEqual(U.isGeminiUrl('blob:https://gemini.google.com/uuid'), true);
+    assert.strictEqual(U.isGeminiUrl('https://evil.com/cat.jpg'), false);
+    assert.strictEqual(
+        U.isGeminiDownload({ url: 'https://gemini.google.com/x.png', referrer: 'https://gemini.google.com/' }),
+        true
+    );
+    assert.strictEqual(U.isGeminiDownload({ url: 'https://evil.com/x.png', referrer: '' }), false);
+});
+
+test('isButtonVisible and isCoordinateInViewport', () => {
+    assert.strictEqual(U.isButtonVisible({ width: 40, height: 40 }), true);
+    assert.strictEqual(U.isButtonVisible({ width: 0, height: 40 }), false);
+    assert.strictEqual(U.isButtonVisible({ width: 40, height: 0 }), false);
+    assert.strictEqual(U.isButtonVisible(null), false);
+
+    assert.strictEqual(U.isCoordinateInViewport(100, 100, 1000, 800), true);
+    assert.strictEqual(U.isCoordinateInViewport(-1, 100, 1000, 800), false);
+    assert.strictEqual(U.isCoordinateInViewport(100, -1, 1000, 800), false);
+    assert.strictEqual(U.isCoordinateInViewport(1001, 100, 1000, 800), false);
+    assert.strictEqual(U.isCoordinateInViewport(NaN, 100, 1000, 800), false);
 });
 
 console.log('done');

@@ -1,10 +1,10 @@
 // @ts-nocheck
 // Gemini Bulk Downloader - Content Script (v5.0)
 
-(function() {
+(function () {
     if (document.getElementById('gemini-ext-root')) return;
 
-    const U = (typeof GeminiBulkUtils !== 'undefined') ? GeminiBulkUtils : null;
+    const U = typeof GeminiBulkUtils !== 'undefined' ? GeminiBulkUtils : null;
 
     const CONFIG = {
         maxWaitMs: 35000,
@@ -27,12 +27,162 @@
 
     // --- i18n (panel only; selectors are locale-independent) ---
     const STRINGS = {
-        en: { title: 'Gemini Auto-Pilot', start: 'Start Queue', load: 'Load All', pause: 'Pause', resume: 'Resume', force: 'Force DL', skip: 'Skip', stop: 'Stop', retry: 'Retry Failed', select: 'Select', selecting: 'Selecting...', downloadSel: 'Download Selected', openFolder: 'Open Folder', reset: 'Reset', clearDedupe: 'Clear Dedupe', ready: 'Ready. Click Load All or Start.', done: 'Done', skipped: 'Skipped', failed: 'Failed', left: 'Left', rate: 'Rate', eta: 'ETA', complete: 'All downloads finished!', noSelection: 'No images selected.' },
-        es: { title: 'Gemini Auto-Pilot', start: 'Iniciar cola', load: 'Cargar todo', pause: 'Pausar', resume: 'Reanudar', force: 'Forzar', skip: 'Saltar', stop: 'Detener', retry: 'Reintentar fallidos', select: 'Seleccionar', selecting: 'Seleccionando...', downloadSel: 'Descargar seleccion', openFolder: 'Abrir carpeta', reset: 'Reiniciar', clearDedupe: 'Limpiar duplicados', ready: 'Listo. Carga todo o inicia.', done: 'Hecho', skipped: 'Omitido', failed: 'Fallido', left: 'Restante', rate: 'Ritmo', eta: 'Tiempo', complete: 'Todas las descargas terminadas.', noSelection: 'No hay imagenes seleccionadas.' },
-        fr: { title: 'Gemini Auto-Pilot', start: 'Demarrer', load: 'Tout charger', pause: 'Pause', resume: 'Reprendre', force: 'Forcer', skip: 'Passer', stop: 'Arreter', retry: 'Reessayer', select: 'Selectionner', selecting: 'Selection...', downloadSel: 'Telecharger selection', openFolder: 'Ouvrir dossier', reset: 'Reinitialiser', clearDedupe: 'Vider doublons', ready: 'Pret. Chargez ou demarrez.', done: 'Termine', skipped: 'Ignore', failed: 'Echec', left: 'Restant', rate: 'Debit', eta: 'Temps', complete: 'Telechargements termines.', noSelection: 'Aucune image selectionnee.' },
-        de: { title: 'Gemini Auto-Pilot', start: 'Start', load: 'Alle laden', pause: 'Pause', resume: 'Weiter', force: 'Erzwingen', skip: 'Uberspringen', stop: 'Stopp', retry: 'Fehlgeschlagene', select: 'Auswahlen', selecting: 'Auswahl...', downloadSel: 'Auswahl laden', openFolder: 'Ordner offnen', reset: 'Zurucksetzen', clearDedupe: 'Duplikate leeren', ready: 'Bereit. Laden oder starten.', done: 'Fertig', skipped: 'Ubersprungen', failed: 'Fehler', left: 'Rest', rate: 'Rate', eta: 'Zeit', complete: 'Alle Downloads fertig.', noSelection: 'Keine Bilder ausgewahlt.' },
-        hi: { title: 'Gemini Auto-Pilot', start: 'Queue shuru karein', load: 'Sab load karein', pause: 'Rokеin', resume: 'Jari rakhein', force: 'Force DL', skip: 'Skip', stop: 'Band karein', retry: 'Failed retry', select: 'Chunein', selecting: 'Chun rahe hain...', downloadSel: 'Chune hue download', openFolder: 'Folder kholein', reset: 'Reset', clearDedupe: 'Dedupe clear', ready: 'Taiyar. Load ya Start dabayein.', done: 'Ho gaya', skipped: 'Chhoda', failed: 'Fail', left: 'Bacha', rate: 'Rate', eta: 'Samay', complete: 'Sab downloads poore.', noSelection: 'Koi image nahi chuni.' },
-        ja: { title: 'Gemini Auto-Pilot', start: '開始', load: 'すべて読み込む', pause: '一時停止', resume: '再開', force: '強制DL', skip: 'スキップ', stop: '停止', retry: '失敗を再試行', select: '選択', selecting: '選択中...', downloadSel: '選択をDL', openFolder: 'フォルダを開く', reset: 'リセット', clearDedupe: '重複を消去', ready: '準備完了。読み込むか開始してください。', done: '完了', skipped: 'スキップ', failed: '失敗', left: '残り', rate: '速度', eta: '予想', complete: 'すべて完了しました。', noSelection: '画像が選択されていません。' }
+        en: {
+            title: 'Gemini Auto-Pilot',
+            start: 'Start Queue',
+            load: 'Load All',
+            pause: 'Pause',
+            resume: 'Resume',
+            force: 'Force DL',
+            skip: 'Skip',
+            stop: 'Stop',
+            retry: 'Retry Failed',
+            select: 'Select',
+            selecting: 'Selecting...',
+            downloadSel: 'Download Selected',
+            openFolder: 'Open Folder',
+            reset: 'Reset',
+            clearDedupe: 'Clear Dedupe',
+            ready: 'Ready. Click Load All or Start.',
+            done: 'Done',
+            skipped: 'Skipped',
+            failed: 'Failed',
+            left: 'Left',
+            rate: 'Rate',
+            eta: 'ETA',
+            complete: 'All downloads finished!',
+            noSelection: 'No images selected.'
+        },
+        es: {
+            title: 'Gemini Auto-Pilot',
+            start: 'Iniciar cola',
+            load: 'Cargar todo',
+            pause: 'Pausar',
+            resume: 'Reanudar',
+            force: 'Forzar',
+            skip: 'Saltar',
+            stop: 'Detener',
+            retry: 'Reintentar fallidos',
+            select: 'Seleccionar',
+            selecting: 'Seleccionando...',
+            downloadSel: 'Descargar seleccion',
+            openFolder: 'Abrir carpeta',
+            reset: 'Reiniciar',
+            clearDedupe: 'Limpiar duplicados',
+            ready: 'Listo. Carga todo o inicia.',
+            done: 'Hecho',
+            skipped: 'Omitido',
+            failed: 'Fallido',
+            left: 'Restante',
+            rate: 'Ritmo',
+            eta: 'Tiempo',
+            complete: 'Todas las descargas terminadas.',
+            noSelection: 'No hay imagenes seleccionadas.'
+        },
+        fr: {
+            title: 'Gemini Auto-Pilot',
+            start: 'Demarrer',
+            load: 'Tout charger',
+            pause: 'Pause',
+            resume: 'Reprendre',
+            force: 'Forcer',
+            skip: 'Passer',
+            stop: 'Arreter',
+            retry: 'Reessayer',
+            select: 'Selectionner',
+            selecting: 'Selection...',
+            downloadSel: 'Telecharger selection',
+            openFolder: 'Ouvrir dossier',
+            reset: 'Reinitialiser',
+            clearDedupe: 'Vider doublons',
+            ready: 'Pret. Chargez ou demarrez.',
+            done: 'Termine',
+            skipped: 'Ignore',
+            failed: 'Echec',
+            left: 'Restant',
+            rate: 'Debit',
+            eta: 'Temps',
+            complete: 'Telechargements termines.',
+            noSelection: 'Aucune image selectionnee.'
+        },
+        de: {
+            title: 'Gemini Auto-Pilot',
+            start: 'Start',
+            load: 'Alle laden',
+            pause: 'Pause',
+            resume: 'Weiter',
+            force: 'Erzwingen',
+            skip: 'Uberspringen',
+            stop: 'Stopp',
+            retry: 'Fehlgeschlagene',
+            select: 'Auswahlen',
+            selecting: 'Auswahl...',
+            downloadSel: 'Auswahl laden',
+            openFolder: 'Ordner offnen',
+            reset: 'Zurucksetzen',
+            clearDedupe: 'Duplikate leeren',
+            ready: 'Bereit. Laden oder starten.',
+            done: 'Fertig',
+            skipped: 'Ubersprungen',
+            failed: 'Fehler',
+            left: 'Rest',
+            rate: 'Rate',
+            eta: 'Zeit',
+            complete: 'Alle Downloads fertig.',
+            noSelection: 'Keine Bilder ausgewahlt.'
+        },
+        hi: {
+            title: 'Gemini Auto-Pilot',
+            start: 'Queue shuru karein',
+            load: 'Sab load karein',
+            pause: 'Rokеin',
+            resume: 'Jari rakhein',
+            force: 'Force DL',
+            skip: 'Skip',
+            stop: 'Band karein',
+            retry: 'Failed retry',
+            select: 'Chunein',
+            selecting: 'Chun rahe hain...',
+            downloadSel: 'Chune hue download',
+            openFolder: 'Folder kholein',
+            reset: 'Reset',
+            clearDedupe: 'Dedupe clear',
+            ready: 'Taiyar. Load ya Start dabayein.',
+            done: 'Ho gaya',
+            skipped: 'Chhoda',
+            failed: 'Fail',
+            left: 'Bacha',
+            rate: 'Rate',
+            eta: 'Samay',
+            complete: 'Sab downloads poore.',
+            noSelection: 'Koi image nahi chuni.'
+        },
+        ja: {
+            title: 'Gemini Auto-Pilot',
+            start: '開始',
+            load: 'すべて読み込む',
+            pause: '一時停止',
+            resume: '再開',
+            force: '強制DL',
+            skip: 'スキップ',
+            stop: '停止',
+            retry: '失敗を再試行',
+            select: '選択',
+            selecting: '選択中...',
+            downloadSel: '選択をDL',
+            openFolder: 'フォルダを開く',
+            reset: 'リセット',
+            clearDedupe: '重複を消去',
+            ready: '準備完了。読み込むか開始してください。',
+            done: '完了',
+            skipped: 'スキップ',
+            failed: '失敗',
+            left: '残り',
+            rate: '速度',
+            eta: '予想',
+            complete: 'すべて完了しました。',
+            noSelection: '画像が選択されていません。'
+        }
     };
     function t(key) {
         const lang = (navigator.language || 'en').slice(0, 2).toLowerCase();
@@ -49,11 +199,17 @@
         stopRequested: false,
         selectedOnly: false,
         startedAt: 0,
+        activeTarget: null,
         outcomes: new Map(),
         targetKeys: new Set()
     };
-    function bumpRunId() { run.id += 1; return run.id; }
-    function runActive(id) { return run.running && run.id === id; }
+    function bumpRunId() {
+        run.id += 1;
+        return run.id;
+    }
+    function runActive(id) {
+        return run.running && run.id === id;
+    }
     function outcomeCounts() {
         const counts = { done: 0, skipped: 0, failed: 0, total: run.outcomes.size };
         for (const state of run.outcomes.values()) {
@@ -104,12 +260,12 @@
                 if (chrome && chrome.storage && chrome.storage.local) {
                     chrome.storage.local.get(storageKey(), (res) => {
                         const v = res ? res[storageKey()] : null;
-                        runStatus = (v && typeof v === 'object' && !Array.isArray(v)) ? v : {};
+                        runStatus = v && typeof v === 'object' && !Array.isArray(v) ? v : {};
                         resolve(runStatus);
                     });
                     return;
                 }
-            } catch (e) {}
+            } catch {}
             runStatus = {};
             resolve(runStatus);
         });
@@ -119,29 +275,30 @@
         runStatus[key] = status;
         try {
             if (chrome && chrome.storage && chrome.storage.local) {
-                const obj = {}; obj[storageKey()] = runStatus;
+                const obj = {};
+                obj[storageKey()] = runStatus;
                 chrome.storage.local.set(obj);
             }
-        } catch (e) {}
+        } catch {}
     }
     function clearRunStatus() {
         runStatus = {};
         try {
             if (chrome && chrome.storage && chrome.storage.local) chrome.storage.local.remove(storageKey());
-        } catch (e) {}
+        } catch {}
     }
     function loadDownloadedKeys() {
         return new Promise((resolve) => {
             try {
                 if (chrome && chrome.storage && chrome.storage.local) {
                     chrome.storage.local.get(downloadedKeySetKey(), (res) => {
-                        const arr = (res && Array.isArray(res[downloadedKeySetKey()])) ? res[downloadedKeySetKey()] : [];
+                        const arr = res && Array.isArray(res[downloadedKeySetKey()]) ? res[downloadedKeySetKey()] : [];
                         downloadedKeys = new Set(arr);
                         resolve();
                     });
                     return;
                 }
-            } catch (e) {}
+            } catch {}
             resolve();
         });
     }
@@ -155,16 +312,17 @@
             }
             downloadedKeys = new Set(arr);
             if (chrome && chrome.storage && chrome.storage.local) {
-                const obj = {}; obj[downloadedKeySetKey()] = arr;
+                const obj = {};
+                obj[downloadedKeySetKey()] = arr;
                 chrome.storage.local.set(obj);
             }
-        } catch (e) {}
+        } catch {}
     }
     function clearDownloadedKeys() {
         downloadedKeys = new Set();
         try {
             if (chrome && chrome.storage && chrome.storage.local) chrome.storage.local.remove(downloadedKeySetKey());
-        } catch (e) {}
+        } catch {}
     }
     function imageKey(target) {
         try {
@@ -177,33 +335,62 @@
                     return U && U.imageKey ? U.imageKey(location.href, stable) : location.href + '::img::' + stable;
                 }
             }
-            const img = target.closest('single-image, [data-image-attachment-index], [data-test-id="image-card"]') || target.parentElement;
-            const attachIdx = img ? (img.getAttribute('data-image-attachment-index') || '') : '';
+            const turnContainer =
+                target.closest && target.closest('.conversation-container, [id^="message-content-id-"]');
+            let turnId = '';
+            if (turnContainer && turnContainer.id) {
+                turnId = turnContainer.id.replace(/^message-content-id-(r_)?/, '');
+            }
+            const img =
+                target.closest('single-image, [data-image-attachment-index], [data-test-id="image-card"]') ||
+                target.parentElement;
+            const attachIdx = img ? img.getAttribute('data-image-attachment-index') || '' : '';
             const orderIdx = target.getAttribute('data-ext-idx') || '';
-            let finalIdx = [orderIdx, attachIdx].filter(Boolean).join('|');
+            let finalIdx = turnId
+                ? 'turn:' + turnId + (attachIdx ? ':' + attachIdx : '')
+                : [orderIdx, attachIdx].filter(Boolean).join('|');
             if (!finalIdx) {
                 const thumb = (img && img.querySelector('img')) || null;
                 if (thumb && thumb.src) finalIdx = 'src:' + thumb.src;
             }
             return U && U.imageKey ? U.imageKey(location.href, finalIdx) : location.href + '::img::' + finalIdx;
-        } catch (e) {
+        } catch {
             return (U && U.imageKey ? U.imageKey(location.href, '') : location.href + '::') + Math.random();
         }
     }
 
-    function invalidateButtons() { buttonsDirty = true; cachedButtons = null; }
+    function invalidateButtons() {
+        buttonsDirty = true;
+        cachedButtons = null;
+    }
     function startButtonObserver() {
         if (buttonObserver) return;
         let pending = false;
-        buttonObserver = new MutationObserver(() => {
+        buttonObserver = new MutationObserver((mutations) => {
+            const hasExternal = mutations.some((m) => {
+                const t = m.target;
+                if (!t || !t.closest) return true;
+                return !t.closest('#gemini-ext-root') && !t.closest('.gemini-dl-status');
+            });
+            if (!hasExternal) return;
             if (pending) return;
             pending = true;
-            setTimeout(() => { pending = false; buttonsDirty = true; }, 150);
+            setTimeout(() => {
+                pending = false;
+                buttonsDirty = true;
+            }, 150);
         });
-        try { buttonObserver.observe(document.body, { childList: true, subtree: true }); } catch (e) {}
+        try {
+            buttonObserver.observe(document.body, { childList: true, subtree: true });
+        } catch {}
     }
     function stopButtonObserver() {
-        if (buttonObserver) { try { buttonObserver.disconnect(); } catch (e) {} buttonObserver = null; }
+        if (buttonObserver) {
+            try {
+                buttonObserver.disconnect();
+            } catch {}
+            buttonObserver = null;
+        }
         invalidateButtons();
     }
 
@@ -215,8 +402,8 @@
     const mainBtn = document.createElement('button');
     mainBtn.innerText = '⬇️ Auto-Pilot Pro';
     mainBtn.style.cssText = `background: #b31412; color: white; border: none; padding: 12px 24px; border-radius: 24px; font-weight: 500; font-size: 14px; cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.2); transition: transform 0.2s; pointer-events: auto;`;
-    mainBtn.onmouseover = () => mainBtn.style.transform = 'scale(1.05)';
-    mainBtn.onmouseout = () => mainBtn.style.transform = 'scale(1)';
+    mainBtn.onmouseover = () => (mainBtn.style.transform = 'scale(1.05)');
+    mainBtn.onmouseout = () => (mainBtn.style.transform = 'scale(1)');
 
     const panel = document.createElement('div');
     panel.style.cssText = `background: #111827; color: white; width: 380px; max-height: 82vh; overflow-y: auto; padding: 16px; border-radius: 12px; margin-bottom: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); display: none; flex-direction: column; gap: 10px; border: 1px solid #374151; pointer-events: none;`;
@@ -233,7 +420,10 @@
     closeBtn.style.cursor = 'pointer';
     closeBtn.style.color = '#9CA3AF';
     closeBtn.style.pointerEvents = 'auto';
-    closeBtn.onclick = () => { panel.style.display = 'none'; mainBtn.style.display = 'block'; };
+    closeBtn.onclick = () => {
+        panel.style.display = 'none';
+        mainBtn.style.display = 'block';
+    };
     header.appendChild(title);
     header.appendChild(closeBtn);
     panel.appendChild(header);
@@ -313,6 +503,7 @@
             run.paused = false;
             log('Stopped by user.');
             statusText.innerText = 'Stopped.';
+            finishRun('Stopped.', false);
         }
     });
     const forceBtn = createBtn(t('force'), '#059669', () => {
@@ -332,36 +523,65 @@
         log('Dedupe history cleared.');
     });
 
-    [startBtn, loadBtn, pauseBtn, forceBtn, skipBtn, stopBtn, retryFailedBtn, selectBtn, downloadSelBtn, openFolderBtn, resetBtn, clearDedupeBtn].forEach(b => controls.appendChild(b));
+    [
+        startBtn,
+        loadBtn,
+        pauseBtn,
+        forceBtn,
+        skipBtn,
+        stopBtn,
+        retryFailedBtn,
+        selectBtn,
+        downloadSelBtn,
+        openFolderBtn,
+        resetBtn,
+        clearDedupeBtn
+    ].forEach((b) => controls.appendChild(b));
     panel.appendChild(controls);
     root.appendChild(panel);
     root.appendChild(mainBtn);
     document.body.appendChild(root);
-    mainBtn.onclick = () => { mainBtn.style.display = 'none'; panel.style.display = 'flex'; };
+    mainBtn.onclick = () => {
+        mainBtn.style.display = 'none';
+        panel.style.display = 'flex';
+    };
 
     // --- HELPERS ---
-    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+    function sleep(ms) {
+        return new Promise((r) => setTimeout(r, ms));
+    }
     function isContextValid() {
-        try { return !!(chrome && chrome.runtime && chrome.runtime.id); } catch (e) { return false; }
+        try {
+            return !!(chrome && chrome.runtime && chrome.runtime.id);
+        } catch {
+            return false;
+        }
     }
     function sendMessagePromise(msg) {
         return new Promise((resolve) => {
-            if (!isContextValid()) { resolve(null); return; }
+            if (!isContextValid()) {
+                resolve(null);
+                return;
+            }
             try {
                 chrome.runtime.sendMessage(msg, (resp) => {
                     if (chrome.runtime.lastError) resolve(null);
                     else resolve(resp);
                 });
-            } catch (e) { resolve(null); }
+            } catch {
+                resolve(null);
+            }
         });
     }
     function updateBadge(text, color) {
         if (!isContextValid()) return;
         try {
             chrome.runtime.sendMessage({ command: 'update_badge', text: text, color: color || '#b31412' }, () => {
-                if (chrome.runtime.lastError) { /* receiver gone; nothing to do */ }
+                if (chrome.runtime.lastError) {
+                    /* receiver gone; nothing to do */
+                }
             });
-        } catch (e) {}
+        } catch {}
     }
 
     function togglePause() {
@@ -379,12 +599,18 @@
         return `${Math.floor(s / 60)}m ${s % 60}s`;
     }
     function backoffDelay(retries) {
-        return U && U.backoffDelay ? U.backoffDelay(retries, CONFIG.backoffBase, CONFIG.backoffCap) : Math.min(CONFIG.backoffCap, CONFIG.backoffBase * Math.pow(2, Math.max(0, retries - 1)));
+        return U && U.backoffDelay
+            ? U.backoffDelay(retries, CONFIG.backoffBase, CONFIG.backoffCap)
+            : Math.min(CONFIG.backoffCap, CONFIG.backoffBase * Math.pow(2, Math.max(0, retries - 1)));
     }
 
     // --- DOM ADAPTER ---
     function getStatusContainer(target) {
-        return target.closest('single-image, [data-image-attachment-index], .generated-image, [data-test-id="image-card"]') || target.parentElement;
+        return (
+            target.closest(
+                'single-image, [data-image-attachment-index], .generated-image, [data-test-id="image-card"]'
+            ) || target.parentElement
+        );
     }
     function setStatus(target, status) {
         if (!target) return;
@@ -395,56 +621,98 @@
         if (!span) {
             span = document.createElement('span');
             span.className = 'gemini-dl-status';
-            span.style.cssText = 'position:absolute; top:6px; right:6px; z-index:5; pointer-events:none; font-size:10px; font-weight:600; padding:2px 6px; border-radius:4px; color:#fff; display:inline-block;';
+            span.style.cssText =
+                'position:absolute; top:6px; left:6px; z-index:5; pointer-events:none; font-size:10px; font-weight:600; padding:2px 6px; border-radius:4px; color:#fff; display:inline-block;';
             container.appendChild(span);
-            try { if (getComputedStyle(container).position === 'static') container.style.position = 'relative'; } catch (e) {}
+            try {
+                if (getComputedStyle(container).position === 'static') container.style.position = 'relative';
+            } catch {}
         }
-        const colors = { pending:'#6B7280', downloading:'#F59E0B', done:'#10B981', skipped:'#9CA3AF', failed:'#EF4444', lowres:'#F97316' };
+        const colors = {
+            pending: '#6B7280',
+            downloading: '#F59E0B',
+            done: '#10B981',
+            skipped: '#9CA3AF',
+            failed: '#EF4444',
+            lowres: '#F97316'
+        };
         span.style.background = colors[status] || '#6B7280';
         span.innerText = status.charAt(0).toUpperCase() + status.slice(1);
     }
-    function getRetries(btn) { return parseInt((btn && btn.getAttribute('data-ext-retries')) || '0', 10); }
-    function incRetries(btn) { const n = getRetries(btn) + 1; if (btn) btn.setAttribute('data-ext-retries', String(n)); return n; }
+    function getRetries(btn) {
+        return parseInt((btn && btn.getAttribute('data-ext-retries')) || '0', 10);
+    }
+    function incRetries(btn) {
+        const n = getRetries(btn) + 1;
+        if (btn) btn.setAttribute('data-ext-retries', String(n));
+        return n;
+    }
 
     function clickPointClear(target, x, y) {
         try {
+            if (x < 0 || y < 0 || x > window.innerWidth || y > window.innerHeight) return false;
             const hit = document.elementFromPoint(x, y);
-            return !hit || hit === target || target.contains(hit);
-        } catch (e) { return true; }
+            if (!hit) return false;
+            if (hit === target || target.contains(hit)) return true;
+            if (hit.closest && hit.closest('#gemini-ext-root')) return true;
+            return false;
+        } catch {
+            return true;
+        }
     }
 
     function isButtonReady(btn) {
         if (!btn) return false;
         if (btn.disabled) return false;
         if (btn.getAttribute('aria-disabled') === 'true') return false;
-        const cls = ((btn.className || '') + ' ' + ((btn.parentElement && btn.parentElement.className) || '')).toLowerCase();
+        const cls = (
+            (btn.className || '') +
+            ' ' +
+            ((btn.parentElement && btn.parentElement.className) || '')
+        ).toLowerCase();
         if (cls.includes('disabled')) return false;
         const rect = btn.getBoundingClientRect();
-        return !(rect.width === 0 && rect.height === 0);
+        return rect.width > 0 && rect.height > 0;
     }
 
     function getButtons() {
         if (!buttonsDirty && cachedButtons) return cachedButtons;
-        const preferred = Array.from(document.querySelectorAll('[data-test-id="download-generated-image-button"], [data-test-id*="download"]'))
-            .map(w => (w.tagName === 'BUTTON' ? w : (w.querySelector('button') || w)))
-            .filter(b => b && !b.closest('#gemini-ext-root') && b.getBoundingClientRect && !(b.getBoundingClientRect().width === 0 && b.getBoundingClientRect().height === 0));
-        const result = preferred.length ? preferred : (function() {
-            const allElements = Array.from(document.querySelectorAll('button, a, [role="button"]'));
-            return allElements.filter(el => {
-                if (el.closest('#gemini-ext-root')) return false;
-                const aria = (el.getAttribute('aria-label') || '');
-                const title = (el.getAttribute('title') || '');
-                const tooltip = (el.getAttribute('data-tooltip') || '');
-                const text = ((el.innerText || el.textContent) || '');
-                const isDownload = U && U.isDownloadLabel
-                    ? U.isDownloadLabel({ aria: aria, title: title, tooltip: tooltip, text: text })
-                    : /download/i.test(aria + title + tooltip + text);
-                if (!isDownload) return false;
-                const rect = el.getBoundingClientRect();
-                return !(rect.width === 0 && rect.height === 0);
-            });
-        })();
-        result.forEach((b, i) => { if (!b.getAttribute('data-ext-idx')) b.setAttribute('data-ext-idx', String(i)); });
+        const preferred = Array.from(
+            document.querySelectorAll('[data-test-id="download-generated-image-button"], [data-test-id*="download"]')
+        )
+            .map((w) => (w.tagName === 'BUTTON' ? w : w.querySelector('button') || w))
+            .filter(
+                (b) =>
+                    b &&
+                    !b.closest('#gemini-ext-root') &&
+                    !b.closest('mat-dialog-container, dialog, [role="dialog"]') &&
+                    b.getBoundingClientRect &&
+                    b.getBoundingClientRect().width > 0 &&
+                    b.getBoundingClientRect().height > 0
+            );
+        const result = preferred.length
+            ? preferred
+            : (function () {
+                  const allElements = Array.from(document.querySelectorAll('button, a, [role="button"]'));
+                  return allElements.filter((el) => {
+                      if (el.closest('#gemini-ext-root') || el.closest('mat-dialog-container, dialog, [role="dialog"]'))
+                          return false;
+                      const aria = el.getAttribute('aria-label') || '';
+                      const title = el.getAttribute('title') || '';
+                      const tooltip = el.getAttribute('data-tooltip') || '';
+                      const text = el.innerText || el.textContent || '';
+                      const isDownload =
+                          U && U.isDownloadLabel
+                              ? U.isDownloadLabel({ aria: aria, title: title, tooltip: tooltip, text: text })
+                              : /download/i.test(aria + title + tooltip + text);
+                      if (!isDownload) return false;
+                      const rect = el.getBoundingClientRect();
+                      return rect && rect.width > 0 && rect.height > 0;
+                  });
+              })();
+        result.forEach((b, i) => {
+            if (!b.getAttribute('data-ext-idx')) b.setAttribute('data-ext-idx', String(i));
+        });
         cachedButtons = result;
         buttonsDirty = false;
         return cachedButtons;
@@ -452,16 +720,24 @@
 
     // --- GALLERY (My Stuff) ---
     function isGalleryPage() {
-        return location.pathname.startsWith('/images') || !!document.querySelector('[data-test-id="images-page-container"]');
+        return (
+            location.pathname.startsWith('/images') ||
+            !!document.querySelector('[data-test-id="images-page-container"]')
+        );
     }
     function getGalleryCards() {
         let cards = Array.from(document.querySelectorAll('[data-test-id="image-card"][role="button"]'));
         if (!cards.length) cards = Array.from(document.querySelectorAll('.image-card[data-test-id="image-card"]'));
         if (!cards.length) cards = Array.from(document.querySelectorAll('[data-test-id="image-card"]'));
         // keep innermost candidates only (host + inner share the test-id)
-        const innermost = cards.filter(c => !cards.some(o => o !== c && c.contains(o)));
-        const visible = innermost.filter(c => { const r = c.getBoundingClientRect(); return r.width > 0 && r.height > 0; });
-        visible.forEach((c, i) => { if (!c.getAttribute('data-ext-idx')) c.setAttribute('data-ext-idx', String(i)); });
+        const innermost = cards.filter((c) => !cards.some((o) => o !== c && c.contains(o)));
+        const visible = innermost.filter((c) => {
+            const r = c.getBoundingClientRect();
+            return r.width > 0 && r.height > 0;
+        });
+        visible.forEach((c, i) => {
+            if (!c.getAttribute('data-ext-idx')) c.setAttribute('data-ext-idx', String(i));
+        });
         return visible;
     }
     function getTargets() {
@@ -476,14 +752,14 @@
             skipped: target.getAttribute('data-ext-skipped') === 'true',
             failed: target.getAttribute('data-ext-failed') === 'true'
         };
-        return U && U.isTerminalState ? U.isTerminalState(state) : (state.done || state.skipped || state.failed);
+        return U && U.isTerminalState ? U.isTerminalState(state) : state.done || state.skipped || state.failed;
     }
     function markTerminal(target, state) {
         if (!target) return;
         try {
             const key = target.getAttribute('data-ext-key') || imageKey(target);
             run.outcomes.set(key, state);
-        } catch (e) {}
+        } catch {}
         target.removeAttribute('data-ext-skipped');
         target.removeAttribute('data-ext-failed');
         if (state === 'done') target.setAttribute('data-ext-done', 'true');
@@ -491,7 +767,10 @@
         else if (state === 'failed') target.setAttribute('data-ext-failed', 'true');
         const border = { done: '#34a853', skipped: '#6B7280', failed: '#EF4444' }[state] || '#ea4335';
         target.style.border = `2px solid ${border}`;
-        target.style.backgroundColor = { done: 'rgba(52, 168, 83, 0.1)', skipped: 'rgba(107, 114, 128, 0.1)', failed: 'rgba(239, 68, 68, 0.1)' }[state] || '';
+        target.style.backgroundColor =
+            { done: 'rgba(52, 168, 83, 0.1)', skipped: 'rgba(107, 114, 128, 0.1)', failed: 'rgba(239, 68, 68, 0.1)' }[
+                state
+            ] || '';
         setStatus(target, state);
     }
 
@@ -509,10 +788,13 @@
         selectBtn.style.background = selectionMode ? '#1D4ED8' : '#2563EB';
         log(selectionMode ? 'Selection mode on. Click images to select.' : 'Selection mode off.');
         if (!selectionMode) {
-            getTargets().forEach(target => {
+            getTargets().forEach((target) => {
                 target.setAttribute('data-ext-selected', 'false');
                 const c = getStatusContainer(target);
-                if (c) { c.setAttribute('data-ext-selected', 'false'); c.style.outline = ''; }
+                if (c) {
+                    c.setAttribute('data-ext-selected', 'false');
+                    c.style.outline = '';
+                }
             });
         }
     }
@@ -536,7 +818,11 @@
 
     function refreshStats(countsOverride) {
         const counts = countsOverride || outcomeCounts();
-        const total = countsOverride ? counts.total : (run.selectedOnly ? totalFound : Math.max(totalFound, counts.total));
+        const total = countsOverride
+            ? counts.total
+            : run.selectedOnly
+              ? totalFound
+              : Math.max(totalFound, counts.total);
         const done = counts.done;
         const skipped = counts.skipped;
         const failed = counts.failed;
@@ -545,7 +831,10 @@
         const elapsedSec = run.startedAt ? (Date.now() - run.startedAt) / 1000 : 0;
         const rate = elapsedSec > 0 ? (processed / elapsedSec) * 60 : 0;
         const etaMs = rate > 0 ? (left / rate) * 60 * 1000 : 0;
-        const set = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
+        const set = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.innerText = val;
+        };
         set('stat-done', done);
         set('stat-skipped', skipped);
         set('stat-failed', failed);
@@ -561,9 +850,14 @@
     // --- LOW-RES DETECTION ---
     function imageForTarget(target) {
         try {
-            const c = target.closest('single-image, [data-image-attachment-index], .generated-image, [data-test-id="image-card"]') || target.parentElement;
+            const c =
+                target.closest(
+                    'single-image, [data-image-attachment-index], .generated-image, [data-test-id="image-card"]'
+                ) || target.parentElement;
             return c ? c.querySelector('img') : null;
-        } catch (e) { return null; }
+        } catch {
+            return null;
+        }
     }
     function isLowRes(target) {
         const img = imageForTarget(target);
@@ -576,7 +870,7 @@
         setStatus(target, 'lowres');
         log('Low-res detected; waiting for full-size...');
         const start = Date.now();
-        while ((Date.now() - start) < CONFIG.lowResWaitMs) {
+        while (Date.now() - start < CONFIG.lowResWaitMs) {
             await sleep(CONFIG.pollMs);
             if (!isLowRes(target)) return true;
         }
@@ -592,7 +886,9 @@
             if (!src || src.startsWith('data:')) return false;
             const resp = await sendMessagePromise({ command: 'check_downloaded', url: src });
             return !!(resp && resp.found);
-        } catch (e) { return false; }
+        } catch {
+            return false;
+        }
     }
 
     // --- TOAST / NOTIFICATION ---
@@ -600,10 +896,25 @@
         try {
             const el = document.createElement('div');
             el.innerText = msg;
-            el.style.cssText = 'position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#111827; color:#fff; padding:10px 16px; border-radius:8px; z-index:1000000; font-size:13px; box-shadow:0 6px 18px rgba(0,0,0,.4); border:1px solid #374151;';
+            el.style.cssText =
+                'position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#111827; color:#fff; padding:10px 16px; border-radius:8px; z-index:1000000; font-size:13px; box-shadow:0 6px 18px rgba(0,0,0,.4); border:1px solid #374151;';
             document.body.appendChild(el);
-            setTimeout(() => { try { el.remove(); } catch (e) {} }, 6000);
-        } catch (e) {}
+            setTimeout(() => {
+                try {
+                    el.remove();
+                } catch {}
+            }, 6000);
+        } catch {}
+    }
+
+    function getChatScroller() {
+        return (
+            document.querySelector('infinite-scroller.chat-history, [data-test-id="chat-history-container"]') ||
+            document.querySelector('infinite-scroller') ||
+            document.scrollingElement ||
+            document.documentElement ||
+            window
+        );
     }
 
     // --- SCAN ---
@@ -614,19 +925,26 @@
         loadBtn.disabled = true;
         loadBtn.innerText = 'Scanning...';
         try {
-            window.scrollTo(0, 0);
+            const scroller = getChatScroller();
+            const isWindow =
+                scroller === window || scroller === document.documentElement || scroller === document.scrollingElement;
+            if (isWindow) window.scrollTo(0, 0);
+            else scroller.scrollTop = 0;
             await sleep(CONFIG.settleMs);
             log('Scrolling down...');
-            let totalHeight = document.body.scrollHeight;
+            let totalHeight = isWindow ? document.body.scrollHeight : scroller.scrollHeight;
             let currentScroll = 0;
-            const step = Math.floor(window.innerHeight * CONFIG.scrollStepFactor);
+            const clientHeight = isWindow ? window.innerHeight : scroller.clientHeight;
+            const step = Math.floor(clientHeight * CONFIG.scrollStepFactor);
             while (currentScroll < totalHeight) {
-                window.scrollTo(0, currentScroll);
+                if (isWindow) window.scrollTo(0, currentScroll);
+                else scroller.scrollTop = currentScroll;
                 await sleep(CONFIG.scrollDelayMs);
                 currentScroll += step;
-                totalHeight = document.body.scrollHeight;
+                totalHeight = isWindow ? document.body.scrollHeight : scroller.scrollHeight;
             }
-            window.scrollTo(0, document.body.scrollHeight);
+            if (isWindow) window.scrollTo(0, document.body.scrollHeight);
+            else scroller.scrollTop = scroller.scrollHeight;
             await sleep(CONFIG.settleMs);
 
             const btns = getButtons();
@@ -634,10 +952,15 @@
             galleryMode = btns.length === 0 && cards.length > 0;
             const targets = galleryMode ? cards : btns;
             totalFound = targets.length;
-            targets.forEach(x => { x.style.border = '2px solid #ea4335'; setStatus(x, 'pending'); });
+            targets.forEach((x) => {
+                x.style.border = '2px solid #ea4335';
+                setStatus(x, 'pending');
+            });
 
             log(`Scan done. Found ${totalFound} ${galleryMode ? 'gallery card(s)' : 'item(s)'}.`);
-            statusText.innerText = galleryMode ? `Ready. Found ${totalFound} gallery cards.` : `Ready. Found ${totalFound} items.`;
+            statusText.innerText = galleryMode
+                ? `Ready. Found ${totalFound} gallery cards.`
+                : `Ready. Found ${totalFound} items.`;
             refreshStats();
         } catch (e) {
             log('Scan error: ' + (e && e.message ? e.message : e));
@@ -657,7 +980,27 @@
         run.fastForward = false;
         run.stopRequested = false;
         stopButtonObserver();
-        try { if (isContextValid()) chrome.runtime.sendMessage({ command: 'detach' }); } catch (e) {}
+        if (run.activeTarget) {
+            try {
+                if (run.activeTarget.getAttribute('data-ext-status') === 'downloading') {
+                    setStatus(run.activeTarget, 'pending');
+                    run.activeTarget.style.border = '2px solid #ea4335';
+                    run.activeTarget.style.backgroundColor = '';
+                }
+            } catch {}
+            run.activeTarget = null;
+        }
+        if (galleryMode) {
+            try {
+                const openModal = document.querySelector(
+                    '[role="dialog"], [aria-modal="true"], .modal-dialog, dialog[open], .test-modal, mat-dialog-container'
+                );
+                if (openModal) dismissGalleryModal();
+            } catch {}
+        }
+        try {
+            if (isContextValid()) chrome.runtime.sendMessage({ command: 'detach' });
+        } catch {}
         if (doneFlag) clearRunStatus();
         if (message) statusText.innerText = message;
         startBtn.disabled = false;
@@ -671,12 +1014,21 @@
         retryFailedBtn.disabled = false;
         refreshStats(countsOverride);
         run.selectedOnly = false;
-        if (doneFlag) { updateBadge('OK', '#10B981'); showToast(t('complete')); }
+        if (doneFlag) {
+            updateBadge('OK', '#10B981');
+            showToast(t('complete'));
+        }
     }
 
     function currentPrefix() {
         const raw = (document.title || 'Gemini').replace(/ - Google Gemini.*/i, '').trim();
-        const safe = raw.replace(/[\x00-\x1F\x7F\\/:*?"<>|]+/g, '_').replace(/[. ]+$/, '').slice(0, 60) || 'Gemini';
+        const safe =
+            U && U.sanitizePrefix
+                ? U.sanitizePrefix(raw, 'Gemini', 50).replace(/[. _]+$/, '') || 'Gemini'
+                : raw
+                      .replace(/[\x00-\x1F\x7F\\/:*?"<>|]+/g, '_')
+                      .replace(/[. ]+$/, '')
+                      .slice(0, 50) || 'Gemini';
         const d = new Date();
         const stamp = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
         return `${safe}_${stamp}`;
@@ -721,7 +1073,10 @@
                 return;
             }
 
-            targets.forEach(x => { x.style.border = '2px solid #ea4335'; setStatus(x, 'pending'); });
+            targets.forEach((x) => {
+                x.style.border = '2px solid #ea4335';
+                setStatus(x, 'pending');
+            });
 
             await loadRunStatus();
             let resumed = 0;
@@ -762,24 +1117,36 @@
         try {
             while (true) {
                 if (!runActive(myRun)) return;
-                if (!isContextValid()) { finishRun('Extension reloaded — stopped. Refresh to resume.', false); return; }
-                if (run.stopRequested) { finishRun('Stopped.', false); return; }
+                if (!isContextValid()) {
+                    finishRun('Extension reloaded — stopped. Refresh to resume.', false);
+                    return;
+                }
+                if (run.stopRequested) {
+                    finishRun('Stopped.', false);
+                    return;
+                }
                 while (run.paused) {
                     statusText.innerText = 'Paused.';
                     await sleep(1000);
                     if (!runActive(myRun)) return;
-                    if (run.stopRequested) { finishRun('Stopped.', false); return; }
+                    if (run.stopRequested) {
+                        finishRun('Stopped.', false);
+                        return;
+                    }
                     if (run.skipRequested) break;
                 }
 
                 const wasDirty = buttonsDirty;
                 const currentButtons = getButtons();
-                if (wasDirty && !run.selectedOnly && currentButtons.length > totalFound) totalFound = currentButtons.length;
+                if (wasDirty && !run.selectedOnly && currentButtons.length > totalFound)
+                    totalFound = currentButtons.length;
 
                 const scoped = run.selectedOnly
-                    ? currentButtons.filter(btn => run.targetKeys.has(btn.getAttribute('data-ext-key') || imageKey(btn)))
+                    ? currentButtons.filter((btn) =>
+                          run.targetKeys.has(btn.getAttribute('data-ext-key') || imageKey(btn))
+                      )
                     : currentButtons;
-                const nextTarget = scoped.find(btn => {
+                const nextTarget = scoped.find((btn) => {
                     const key = btn.getAttribute('data-ext-key') || imageKey(btn);
                     return !run.outcomes.has(key) && !isTerminal(btn);
                 });
@@ -803,17 +1170,31 @@
                 let ready = isButtonReady(nextTarget);
                 let skippedNow = false;
 
-                while (!ready && (Date.now() - waitStart) < CONFIG.maxWaitMs) {
+                while (!ready && Date.now() - waitStart < CONFIG.maxWaitMs) {
                     if (!runActive(myRun)) return;
                     while (run.paused) {
                         await sleep(1000);
                         if (!runActive(myRun)) return;
-                        if (run.stopRequested) { finishRun('Stopped.', false); return; }
+                        if (run.stopRequested) {
+                            finishRun('Stopped.', false);
+                            return;
+                        }
                         if (run.skipRequested) break;
                     }
-                    if (run.stopRequested) { finishRun('Stopped.', false); return; }
-                    if (run.skipRequested) { run.skipRequested = false; skippedNow = true; break; }
-                    if (run.fastForward) { run.fastForward = false; ready = true; break; }
+                    if (run.stopRequested) {
+                        finishRun('Stopped.', false);
+                        return;
+                    }
+                    if (run.skipRequested) {
+                        run.skipRequested = false;
+                        skippedNow = true;
+                        break;
+                    }
+                    if (run.fastForward) {
+                        run.fastForward = false;
+                        ready = true;
+                        break;
+                    }
 
                     const elapsedMs = Date.now() - waitStart;
                     const leftMs = Math.max(0, CONFIG.maxWaitMs - elapsedMs);
@@ -823,8 +1204,14 @@
                     ready = isButtonReady(nextTarget);
                 }
 
-                if (run.skipRequested) { run.skipRequested = false; skippedNow = true; }
-                if (run.stopRequested) { finishRun('Stopped.', false); return; }
+                if (run.skipRequested) {
+                    run.skipRequested = false;
+                    skippedNow = true;
+                }
+                if (run.stopRequested) {
+                    finishRun('Stopped.', false);
+                    return;
+                }
 
                 const key = nextKey;
 
@@ -853,6 +1240,7 @@
 
                 await waitForHighRes(nextTarget);
                 if (!runActive(myRun)) return;
+                run.activeTarget = nextTarget;
                 setStatus(nextTarget, 'downloading');
 
                 if (await isAlreadyDownloaded(nextTarget)) {
@@ -860,6 +1248,7 @@
                     log(`Img ${itemNum}: already in Downloads, skipping.`);
                     markTerminal(nextTarget, 'done');
                     saveRunStatus(key, 'done');
+                    run.activeTarget = null;
                     await sleep(0);
                     continue;
                 }
@@ -875,7 +1264,9 @@
                 let response;
                 if (!clickPointClear(nextTarget, clickX, clickY)) {
                     log(`Img ${itemNum}: button covered; using DOM click.`);
-                    try { nextTarget.click(); } catch (e) {}
+                    try {
+                        nextTarget.click();
+                    } catch {}
                     response = { status: 'success' };
                 } else {
                     response = await sendMessagePromise({ command: 'simulate_click', x: clickX, y: clickY });
@@ -883,7 +1274,11 @@
                 if (!runActive(myRun)) return;
 
                 if (response && response.status === 'success') {
-                    const download = await sendMessagePromise({ command: 'wait_for_download', since: clickAt, timeout: CONFIG.downloadStartWaitMs });
+                    const download = await sendMessagePromise({
+                        command: 'wait_for_download',
+                        since: clickAt,
+                        timeout: CONFIG.downloadStartWaitMs
+                    });
                     if (!runActive(myRun)) return;
                     if (!download || !download.found) {
                         const retries = incRetries(nextTarget);
@@ -893,11 +1288,13 @@
                             markTerminal(nextTarget, 'failed');
                             saveRunStatus(key, 'failed');
                             updateBadge('!', '#EF4444');
+                            run.activeTarget = null;
                             await sleep(1000);
                             continue;
                         }
                         statusText.innerText = 'No download started. Retrying...';
                         setStatus(nextTarget, 'pending');
+                        run.activeTarget = null;
                         await sleep(backoffDelay(retries));
                         continue;
                     }
@@ -907,6 +1304,7 @@
                     saveRunStatus(key, 'done');
                     downloadedKeys.add(key);
                     persistDownloadedKeys();
+                    run.activeTarget = null;
                     await sleep(CONFIG.postClickMs);
                     if (!runActive(myRun)) return;
                 } else {
@@ -917,11 +1315,13 @@
                         markTerminal(nextTarget, 'failed');
                         saveRunStatus(key, 'failed');
                         updateBadge('!', '#EF4444');
+                        run.activeTarget = null;
                         await sleep(1000);
                         continue;
                     }
                     statusText.innerText = 'Error. Retrying...';
                     setStatus(nextTarget, 'pending');
+                    run.activeTarget = null;
                     await sleep(backoffDelay(retries));
                     if (!runActive(myRun)) return;
                 }
@@ -939,15 +1339,19 @@
         await sendMessagePromise({ command: 'simulate_key', key: 'Escape' });
         await sleep(400);
         try {
-            const modal = document.querySelector('[role="dialog"], [aria-modal="true"], .modal-dialog, dialog[open], .test-modal');
+            const modal = document.querySelector(
+                '[role="dialog"], [aria-modal="true"], .modal-dialog, dialog[open], .test-modal'
+            );
             if (modal) {
-                const closeBtn = modal.querySelector('button[aria-label*="close" i], button[data-test-id*="close" i], button.close, [data-test-id="modal-close-button"]');
+                const closeBtn = modal.querySelector(
+                    'button[aria-label*="close" i], button[data-test-id*="close" i], button.close, [data-test-id="modal-close-button"]'
+                );
                 if (closeBtn && typeof closeBtn.click === 'function') {
                     closeBtn.click();
                     await sleep(300);
                 }
             }
-        } catch (e) {}
+        } catch {}
     }
 
     async function processGalleryQueue() {
@@ -955,25 +1359,37 @@
         try {
             while (true) {
                 if (!runActive(myRun)) return;
-                if (!isContextValid()) { finishRun('Extension reloaded — stopped.', false); return; }
-                if (run.stopRequested) { finishRun('Stopped.', false); return; }
+                if (!isContextValid()) {
+                    finishRun('Extension reloaded — stopped.', false);
+                    return;
+                }
+                if (run.stopRequested) {
+                    finishRun('Stopped.', false);
+                    return;
+                }
                 while (run.paused) {
                     statusText.innerText = 'Paused.';
                     await sleep(1000);
                     if (!runActive(myRun)) return;
-                    if (run.stopRequested) { finishRun('Stopped.', false); return; }
+                    if (run.stopRequested) {
+                        finishRun('Stopped.', false);
+                        return;
+                    }
                     if (run.skipRequested) break;
                 }
 
                 const cards = getGalleryCards();
                 const scoped = run.selectedOnly
-                    ? cards.filter(c => run.targetKeys.has(c.getAttribute('data-ext-key') || imageKey(c)))
+                    ? cards.filter((c) => run.targetKeys.has(c.getAttribute('data-ext-key') || imageKey(c)))
                     : cards;
-                const next = scoped.find(c => {
+                const next = scoped.find((c) => {
                     const key = c.getAttribute('data-ext-key') || imageKey(c);
                     return !run.outcomes.has(key) && !isTerminal(c);
                 });
-                if (!next) { finishWithOutcome(); return; }
+                if (!next) {
+                    finishWithOutcome();
+                    return;
+                }
 
                 const itemNum = run.outcomes.size + 1;
                 refreshStats();
@@ -981,6 +1397,7 @@
                 next.scrollIntoView({ behavior: 'instant', block: 'center' });
                 await sleep(CONFIG.scrollSettleMs);
                 if (!runActive(myRun)) return;
+                run.activeTarget = next;
                 setStatus(next, 'downloading');
                 const key = next.getAttribute('data-ext-key') || imageKey(next);
                 next.setAttribute('data-ext-key', key);
@@ -990,6 +1407,7 @@
                     log(`Card ${itemNum}: already in Downloads, skipping.`);
                     markTerminal(next, 'done');
                     saveRunStatus(key, 'done');
+                    run.activeTarget = null;
                     continue;
                 }
                 if (!runActive(myRun)) return;
@@ -999,8 +1417,15 @@
                 let waited = 0;
                 while (!dlBtn && waited < CONFIG.galleryModalWaitMs) {
                     if (!runActive(myRun)) return;
-                    if (run.stopRequested) { finishRun('Stopped.', false); return; }
-                    if (run.paused) { statusText.innerText = 'Paused.'; await sleep(500); continue; }
+                    if (run.stopRequested) {
+                        finishRun('Stopped.', false);
+                        return;
+                    }
+                    if (run.paused) {
+                        statusText.innerText = 'Paused.';
+                        await sleep(500);
+                        continue;
+                    }
                     await sleep(400);
                     waited += 400;
                     const btns = getButtons();
@@ -1010,6 +1435,7 @@
                     log(`Card ${itemNum}: no download button in modal.`);
                     markTerminal(next, 'failed');
                     saveRunStatus(key, 'failed');
+                    run.activeTarget = null;
                     await dismissGalleryModal();
                     continue;
                 }
@@ -1018,9 +1444,19 @@
                 let waitedReady = 0;
                 while (!ready && waitedReady < CONFIG.maxWaitMs) {
                     if (!runActive(myRun)) return;
-                    if (run.stopRequested) { finishRun('Stopped.', false); return; }
-                    if (run.paused) { statusText.innerText = 'Paused.'; await sleep(500); continue; }
-                    if (run.skipRequested) { run.skipRequested = false; break; }
+                    if (run.stopRequested) {
+                        finishRun('Stopped.', false);
+                        return;
+                    }
+                    if (run.paused) {
+                        statusText.innerText = 'Paused.';
+                        await sleep(500);
+                        continue;
+                    }
+                    if (run.skipRequested) {
+                        run.skipRequested = false;
+                        break;
+                    }
                     await sleep(CONFIG.pollMs);
                     waitedReady += CONFIG.pollMs;
                     ready = isButtonReady(dlBtn);
@@ -1034,14 +1470,20 @@
                     let response;
                     if (!clickPointClear(dlBtn, clickX, clickY)) {
                         log(`Card ${itemNum}: button covered; using DOM click.`);
-                        try { dlBtn.click(); } catch (e) {}
+                        try {
+                            dlBtn.click();
+                        } catch {}
                         response = { status: 'success' };
                     } else {
                         response = await sendMessagePromise({ command: 'simulate_click', x: clickX, y: clickY });
                     }
                     if (!runActive(myRun)) return;
                     if (response && response.status === 'success') {
-                        const download = await sendMessagePromise({ command: 'wait_for_download', since: clickAt, timeout: CONFIG.downloadStartWaitMs });
+                        const download = await sendMessagePromise({
+                            command: 'wait_for_download',
+                            since: clickAt,
+                            timeout: CONFIG.downloadStartWaitMs
+                        });
                         if (!runActive(myRun)) return;
                         if (!download || !download.found) {
                             log(`Card ${itemNum}: no download started.`);
@@ -1064,6 +1506,7 @@
                     markTerminal(next, 'skipped');
                     saveRunStatus(key, 'skipped');
                 }
+                run.activeTarget = null;
                 await dismissGalleryModal();
                 if (!runActive(myRun)) return;
             }
@@ -1078,19 +1521,27 @@
         if (run.running) return;
         const targets = getTargets();
         let count = 0;
+        run.targetKeys.clear();
         for (const x of targets) {
             if (x.getAttribute('data-ext-failed') === 'true' || x.getAttribute('data-ext-status') === 'failed') {
-                try { run.outcomes.delete(x.getAttribute('data-ext-key') || imageKey(x)); } catch (e) {}
+                const k = x.getAttribute('data-ext-key') || imageKey(x);
+                try {
+                    run.outcomes.delete(k);
+                } catch {}
                 x.removeAttribute('data-ext-done');
                 x.removeAttribute('data-ext-failed');
                 x.removeAttribute('data-ext-retries');
                 x.style.border = '2px solid #ea4335';
                 x.style.backgroundColor = '';
                 setStatus(x, 'pending');
+                run.targetKeys.add(k);
                 count++;
             }
         }
-        if (count === 0) { log('No failed images to retry.'); return; }
+        if (count === 0) {
+            log('No failed images to retry.');
+            return;
+        }
         log(`Retrying ${count} failed image(s).`);
         statusText.innerText = `Retrying ${count} failed...`;
         run.running = true;
@@ -1107,14 +1558,19 @@
         loadBtn.disabled = true;
         retryFailedBtn.disabled = true;
         startButtonObserver();
-        if (galleryMode) processGalleryQueue(); else processQueue();
+        await sendMessagePromise({ command: 'set_download_prefix', prefix: currentPrefix() });
+        if (galleryMode) processGalleryQueue();
+        else processQueue();
     }
 
     function downloadSelected() {
         if (run.running) return;
         const targets = getTargets();
         const selected = targets.filter(isSelected);
-        if (!selected.length) { log(t('noSelection')); return; }
+        if (!selected.length) {
+            log(t('noSelection'));
+            return;
+        }
         run.selectedOnly = true;
         log(`Downloading ${selected.length} selected image(s).`);
         startQueue();
@@ -1130,12 +1586,17 @@
         totalFound = 0;
         logLines = [];
         logBox.innerText = '';
-        getTargets().forEach(x => {
-            ['data-ext-done', 'data-ext-skipped', 'data-ext-failed', 'data-ext-retries', 'data-ext-selected'].forEach(a => x.removeAttribute(a));
+        getTargets().forEach((x) => {
+            ['data-ext-done', 'data-ext-skipped', 'data-ext-failed', 'data-ext-retries', 'data-ext-selected'].forEach(
+                (a) => x.removeAttribute(a)
+            );
             x.style.border = '';
             x.style.backgroundColor = '';
             const c = getStatusContainer(x);
-            if (c) { c.style.outline = ''; c.setAttribute('data-ext-selected', 'false'); }
+            if (c) {
+                c.style.outline = '';
+                c.setAttribute('data-ext-selected', 'false');
+            }
             setStatus(x, 'pending');
         });
         statusText.innerText = t('ready');
@@ -1146,7 +1607,7 @@
 
     // --- SPA NAVIGATION ---
     let lastHref = location.href;
-    setInterval(() => {
+    const spaNavInterval = setInterval(() => {
         if (location.href === lastHref) return;
         lastHref = location.href;
         if (run.running) finishRun('Page changed — stopped.', false);
@@ -1161,17 +1622,22 @@
     }, 1000);
 
     function handleUnload() {
+        try {
+            clearInterval(spaNavInterval);
+        } catch {}
         bumpRunId();
         run.running = false;
         run.stopRequested = false;
         stopButtonObserver();
-        try { if (isContextValid()) chrome.runtime.sendMessage({ command: 'detach' }); } catch (e) {}
+        try {
+            if (isContextValid()) chrome.runtime.sendMessage({ command: 'detach' });
+        } catch {}
         updateBadge('', '#b31412');
     }
     try {
-        window.addEventListener('beforeunload', handleUnload, { once: true });
-        window.addEventListener('pagehide', handleUnload, { once: true });
-    } catch (e) {}
+        window.addEventListener('beforeunload', handleUnload);
+        window.addEventListener('pagehide', handleUnload);
+    } catch {}
 
     updateBadge('', '#b31412');
 })();

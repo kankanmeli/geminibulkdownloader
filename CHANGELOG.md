@@ -1,5 +1,18 @@
 # Changelog
 
+## 5.1.0 (2026-11-23)
+- **Filesystem & Path Traversal Security:** Added `sanitizePrefix` and `sanitizeFilename` in `extension/utils.js` preventing path traversal (`..`), directory escape, Unix hidden files (`.bashrc`), and Windows reserved device names (`CON`, `PRN`, `AUX`, `NUL`, `COM1-9`, `LPT1-9`). Enforced Windows `MAX_PATH` budget protection (prefix <= 64 chars, filename <= 100 chars, relative path <= 165 chars).
+- **Download History Privacy & Oracle Protection:** Secured `check_downloaded` and `wait_for_download` against cross-origin history queries by strictly verifying target URLs belong to legitimate Gemini/Google domains (`isGeminiUrl`, `isGeminiDownload`).
+- **Chromium Clock-Skew Tolerance & Single-Claim Waiter:** Added 1500ms grace window in `wait_for_download` to handle Chromium's second-truncated `startTime` timestamps; downloads are claimed and removed upon match to prevent cross-attribution across sequential items.
+- **Gemini Chat Container Scrolling:** Replaced no-op `window.scrollTo` in `autoScrollScan()` with dynamic scroll container targeting (`infinite-scroller.chat-history`), resolving broken image scanning in virtualized long chats.
+- **Status Badge Repositioning:** Moved `.gemini-dl-status` badge to `top: 6px; left: 6px;` eliminating 100% visual overlap with Gemini's native `top: 12px; right: 12px;` action buttons.
+- **Modal Dialog & Backdrop Isolation:** Excluded `mat-dialog-container` and `[role="dialog"]` elements from normal button scanning to prevent duplicate button indexing and backdrop hit-test occlusion; auto-dismiss open modals on queue stop.
+- **Viewport Bounds & UI Occlusion Immunity:** Hardened `clickPointClear` against offscreen/negative coordinates and extension UI clicks; buttons occluded only by `#gemini-ext-root` panel at high zoom (150%) now pass hit-testing cleanly.
+- **Clean Message Channel Discipline:** Fixed MV3 message channel leaks by returning `false` on synchronous `onMessage` handlers (`update_badge`, `set_download_prefix`, `open_downloads_folder`, `detach`) and added default unknown command rejection.
+- **SPA Lifecycle & Event Cleanup:** Cleaned up SPA navigation `setInterval` on `pagehide` and `beforeunload`.
+- **Immutable Turn Deduplication:** Enhanced `imageKey()` to detect conversation turn containers (`.conversation-container`, `message-content-id-*`) for stable deduplication across lazy loading.
+- **Comprehensive Automated Test Suites:** Expanded from 97 tests to 140 automated tests across 5 test suites (`utils.test.js`, `background.test.js`, `integration.test.js`, `security.test.js`, and `adversarial-concurrency.test.js`) with 100% pass rate, 0 lint errors, 0 typecheck errors.
+
 ## 5.0.1 (2026-11-23)
 - Gallery modal close fallback: if `Escape` does not dismiss the modal dialog (e.g. focus lost), automatically finds and clicks the modal's close button, preventing subsequent gallery cards from being blocked.
 - Windows path sanitization: strips trailing dots and spaces (`[. ]+$`) from download subfolder names to prevent Win32 directory creation failures when chat titles end in punctuation or spaces.

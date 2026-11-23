@@ -1,14 +1,16 @@
 {
   "name": "gemini-bulk-image-downloader",
-  "version": "5.0.1",
+  "version": "5.1.0",
   "private": true,
   "scripts": {
     "lint": "eslint extension/*.js scripts/*.js tests/*.js",
     "format": "prettier -w extension/*.js scripts/*.js tests/*.js",
-    "test": "node tests/utils.test.js && node tests/background.test.js && node tests/integration.test.js",
+    "test": "node tests/utils.test.js && node tests/background.test.js && node tests/integration.test.js && node tests/security.test.js && node tests/adversarial-concurrency.test.js",
     "test:unit": "node tests/utils.test.js",
     "test:background": "node tests/background.test.js",
     "test:integration": "node tests/integration.test.js",
+    "test:security": "node tests/security.test.js",
+    "test:adversarial": "node tests/adversarial-concurrency.test.js",
     "typecheck": "tsc -p jsconfig.json --noEmit",
     "sync-version": "node scripts/sync-version.js"
   },
