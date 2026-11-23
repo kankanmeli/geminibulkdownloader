@@ -355,7 +355,10 @@ async function testContent() {
         };
 
         startBtn.click();
-        await delay(30);
+        const startT = Date.now();
+        while (btn.getAttribute('data-ext-status') !== 'downloading' && Date.now() - startT < 500) {
+            await delay(10);
+        }
 
         // Target should be downloading
         const statusBefore = btn.getAttribute('data-ext-status');

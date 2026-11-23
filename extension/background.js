@@ -31,10 +31,32 @@ let prefixRestored = false;
 function persistPrefix() {
     try {
         if (chrome.storage && chrome.storage.session) {
-            chrome.storage.session.set({
-                geminiDownloadPrefix: downloadPrefix,
-                geminiDownloadPrefixTabId: downloadPrefixTabId
-            });
+            chrome.storage.session.set(
+                {
+                    geminiDownloadPrefix: downloadPrefix,
+                    geminiDownloadPrefixTabId: downloadPrefixTabId
+                },
+                () => {
+                    if (chrome.runtime.lastError) {
+                    }
+                }
+            );
+        }
+    } catch {}
+}
+
+function persistAttachedTabs() {
+    try {
+        if (chrome.storage && chrome.storage.session) {
+            chrome.storage.session.set(
+                {
+                    geminiAttachedTabs: Array.from(attachedTabs)
+                },
+                () => {
+                    if (chrome.runtime.lastError) {
+                    }
+                }
+            );
         }
     } catch {}
 }
@@ -42,11 +64,19 @@ function persistPrefix() {
 // Survive service-worker restarts during long runs.
 try {
     if (chrome.storage && chrome.storage.session) {
-        chrome.storage.session.get(['geminiDownloadPrefix', 'geminiDownloadPrefixTabId'], (res) => {
-            if (prefixRestored || !res) return;
-            downloadPrefix = res.geminiDownloadPrefix || '';
-            downloadPrefixTabId = res.geminiDownloadPrefixTabId == null ? null : res.geminiDownloadPrefixTabId;
-        });
+        chrome.storage.session.get(
+            ['geminiDownloadPrefix', 'geminiDownloadPrefixTabId', 'geminiAttachedTabs'],
+            (res) => {
+                if (chrome.runtime.lastError || !res) return;
+                if (!prefixRestored) {
+                    downloadPrefix = res.geminiDownloadPrefix || '';
+                    downloadPrefixTabId = res.geminiDownloadPrefixTabId == null ? null : res.geminiDownloadPrefixTabId;
+                }
+                if (Array.isArray(res.geminiAttachedTabs)) {
+                    res.geminiAttachedTabs.forEach((id) => attachedTabs.add(id));
+                }
+            }
+        );
     }
 } catch {}
 
@@ -82,6 +112,7 @@ function noteDownload(item) {
         const waiter = downloadWaiters[i];
         if (!waiter.match(entry)) continue;
         clearTimeout(waiter.timer);
+        if (waiter.pollTimer) clearInterval(waiter.pollTimer);
         downloadWaiters.splice(i, 1);
         const idx = recentDownloads.indexOf(entry);
         if (idx >= 0) recentDownloads.splice(idx, 1);
@@ -91,6 +122,16 @@ function noteDownload(item) {
 }
 if (chrome.downloads && chrome.downloads.onCreated) {
     chrome.downloads.onCreated.addListener(noteDownload);
+}
+if (chrome.downloads && chrome.downloads.onChanged) {
+    chrome.downloads.onChanged.addListener((delta) => {
+        if (!delta || !delta.id) return;
+        const entry = recentDownloads.find((e) => e.id === delta.id);
+        if (!entry) return;
+        if (delta.mime && delta.mime.current) entry.mime = delta.mime.current;
+        if (delta.state && delta.state.current) entry.state = delta.state.current;
+        if (delta.filename && delta.filename.current) entry.filename = delta.filename.current;
+    });
 }
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -177,6 +218,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 const msg = chrome.runtime.lastError.message || '';
                 if (msg.includes('already attached')) {
                     attachedTabs.add(tabId);
+                    persistAttachedTabs();
                     doClick();
                     return;
                 }
@@ -184,6 +226,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 return;
             }
             attachedTabs.add(tabId);
+            persistAttachedTabs();
             doClick();
         });
 
@@ -229,6 +272,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 const msg = chrome.runtime.lastError.message || '';
                 if (msg.includes('already attached')) {
                     attachedTabs.add(tabId);
+                    persistAttachedTabs();
                     run();
                     return;
                 }
@@ -236,6 +280,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 return;
             }
             attachedTabs.add(tabId);
+            persistAttachedTabs();
             run();
         });
         return true;
@@ -290,14 +335,91 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             resolve: (result) => {
                 if (settled) return;
                 settled = true;
+                if (waiter.pollTimer) clearInterval(waiter.pollTimer);
                 sendResponse(result);
             }
         };
+
+        const pollFallback = () => {
+            if (settled || !chrome.downloads || !chrome.downloads.search) return;
+            try {
+                const sinceISO = new Date(since - GRACE_MS).toISOString();
+                chrome.downloads.search({ startedAfter: sinceISO, limit: 20, orderBy: ['-startTime'] }, (items) => {
+                    if (chrome.runtime.lastError || settled || !items) return;
+                    const found = items.find(
+                        (item) =>
+                            item &&
+                            (item.state === 'in_progress' || item.state === 'complete') &&
+                            isGeminiDownload(item) &&
+                            normalizeStartTime(item.startTime) >= since - GRACE_MS
+                    );
+                    if (found) {
+                        clearTimeout(waiter.timer);
+                        if (waiter.pollTimer) clearInterval(waiter.pollTimer);
+                        const idx = downloadWaiters.indexOf(waiter);
+                        if (idx >= 0) downloadWaiters.splice(idx, 1);
+                        waiter.resolve({
+                            status: 'success',
+                            found: true,
+                            download: {
+                                id: found.id,
+                                url: found.url || '',
+                                filename: found.filename || '',
+                                referrer: found.referrer || '',
+                                startTime: normalizeStartTime(found.startTime) || Date.now(),
+                                state: found.state || 'in_progress',
+                                mime: found.mime || ''
+                            }
+                        });
+                    }
+                });
+            } catch {}
+        };
+
+        waiter.pollTimer = setInterval(pollFallback, 2000);
+        setTimeout(pollFallback, 1500);
+
         const timeoutMs = Math.min(Math.max(Number(request.timeout) || 10000, 1000), 60000);
         waiter.timer = setTimeout(() => {
             if (settled) return;
             const idx = downloadWaiters.indexOf(waiter);
             if (idx >= 0) downloadWaiters.splice(idx, 1);
+            if (waiter.pollTimer) clearInterval(waiter.pollTimer);
+            if (chrome.downloads && chrome.downloads.search) {
+                try {
+                    const sinceISO = new Date(since - GRACE_MS).toISOString();
+                    chrome.downloads.search({ startedAfter: sinceISO, limit: 20, orderBy: ['-startTime'] }, (items) => {
+                        if (chrome.runtime.lastError || settled) return;
+                        const found =
+                            items &&
+                            items.find(
+                                (item) =>
+                                    item &&
+                                    (item.state === 'in_progress' || item.state === 'complete') &&
+                                    isGeminiDownload(item) &&
+                                    normalizeStartTime(item.startTime) >= since - GRACE_MS
+                            );
+                        if (found) {
+                            waiter.resolve({
+                                status: 'success',
+                                found: true,
+                                download: {
+                                    id: found.id,
+                                    url: found.url || '',
+                                    filename: found.filename || '',
+                                    referrer: found.referrer || '',
+                                    startTime: normalizeStartTime(found.startTime) || Date.now(),
+                                    state: found.state || 'in_progress',
+                                    mime: found.mime || ''
+                                }
+                            });
+                        } else {
+                            waiter.resolve({ status: 'success', found: false });
+                        }
+                    });
+                    return;
+                } catch {}
+            }
             waiter.resolve({ status: 'success', found: false });
         }, timeoutMs);
         downloadWaiters.push(waiter);
@@ -335,6 +457,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 chrome.debugger.detach({ tabId: tabId });
             } catch {}
             attachedTabs.delete(tabId);
+            persistAttachedTabs();
             clearPrefixForTab(tabId);
         }
         sendResponse({ status: 'success' });
@@ -362,7 +485,7 @@ if (chrome.downloads && chrome.downloads.onDeterminingFilename) {
     chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
         if (downloadPrefix) {
             applyDownloadSuggestion(downloadPrefix, item, suggest);
-            return;
+            return true;
         }
         if (chrome.storage && chrome.storage.session) {
             try {
@@ -374,8 +497,8 @@ if (chrome.downloads && chrome.downloads.onDeterminingFilename) {
                 return true;
             } catch {
                 suggest();
+                return true;
             }
-            return;
         }
         suggest();
     });
@@ -383,15 +506,20 @@ if (chrome.downloads && chrome.downloads.onDeterminingFilename) {
 
 // Clean up tracking if a tab is closed, navigated, or debugger is detached by the user.
 chrome.debugger.onDetach.addListener((source) => {
-    if (source && source.tabId != null) attachedTabs.delete(source.tabId);
+    if (source && source.tabId != null) {
+        attachedTabs.delete(source.tabId);
+        persistAttachedTabs();
+    }
 });
 chrome.tabs.onRemoved.addListener((tabId) => {
     attachedTabs.delete(tabId);
+    persistAttachedTabs();
     clearPrefixForTab(tabId);
 });
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
     if (changeInfo.status === 'loading') {
         attachedTabs.delete(tabId);
+        persistAttachedTabs();
         clearPrefixForTab(tabId);
     }
 });

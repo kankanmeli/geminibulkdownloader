@@ -1,8 +1,16 @@
 // @ts-nocheck
-// Gemini Bulk Downloader - Content Script (v5.0)
+// Gemini Bulk Downloader - Content Script (v5.1)
 
 (function () {
-    if (document.getElementById('gemini-ext-root')) return;
+    const existingRoot = document.getElementById('gemini-ext-root');
+    if (existingRoot) {
+        try {
+            chrome.runtime.id;
+            return;
+        } catch {
+            existingRoot.remove();
+        }
+    }
 
     const U = typeof GeminiBulkUtils !== 'undefined' ? GeminiBulkUtils : null;
 
@@ -259,6 +267,10 @@
             try {
                 if (chrome && chrome.storage && chrome.storage.local) {
                     chrome.storage.local.get(storageKey(), (res) => {
+                        if (chrome.runtime.lastError) {
+                            resolve(runStatus);
+                            return;
+                        }
                         const v = res ? res[storageKey()] : null;
                         runStatus = v && typeof v === 'object' && !Array.isArray(v) ? v : {};
                         resolve(runStatus);
@@ -277,14 +289,22 @@
             if (chrome && chrome.storage && chrome.storage.local) {
                 const obj = {};
                 obj[storageKey()] = runStatus;
-                chrome.storage.local.set(obj);
+                chrome.storage.local.set(obj, () => {
+                    if (chrome.runtime.lastError) {
+                    }
+                });
             }
         } catch {}
     }
     function clearRunStatus() {
         runStatus = {};
         try {
-            if (chrome && chrome.storage && chrome.storage.local) chrome.storage.local.remove(storageKey());
+            if (chrome && chrome.storage && chrome.storage.local) {
+                chrome.storage.local.remove(storageKey(), () => {
+                    if (chrome.runtime.lastError) {
+                    }
+                });
+            }
         } catch {}
     }
     function loadDownloadedKeys() {
@@ -292,6 +312,10 @@
             try {
                 if (chrome && chrome.storage && chrome.storage.local) {
                     chrome.storage.local.get(downloadedKeySetKey(), (res) => {
+                        if (chrome.runtime.lastError) {
+                            resolve();
+                            return;
+                        }
                         const arr = res && Array.isArray(res[downloadedKeySetKey()]) ? res[downloadedKeySetKey()] : [];
                         downloadedKeys = new Set(arr);
                         resolve();
@@ -314,14 +338,22 @@
             if (chrome && chrome.storage && chrome.storage.local) {
                 const obj = {};
                 obj[downloadedKeySetKey()] = arr;
-                chrome.storage.local.set(obj);
+                chrome.storage.local.set(obj, () => {
+                    if (chrome.runtime.lastError) {
+                    }
+                });
             }
         } catch {}
     }
     function clearDownloadedKeys() {
         downloadedKeys = new Set();
         try {
-            if (chrome && chrome.storage && chrome.storage.local) chrome.storage.local.remove(downloadedKeySetKey());
+            if (chrome && chrome.storage && chrome.storage.local) {
+                chrome.storage.local.remove(downloadedKeySetKey(), () => {
+                    if (chrome.runtime.lastError) {
+                    }
+                });
+            }
         } catch {}
     }
     function imageKey(target) {
@@ -336,14 +368,18 @@
                 }
             }
             const turnContainer =
-                target.closest && target.closest('.conversation-container, [id^="message-content-id-"]');
+                target.closest &&
+                target.closest(
+                    'response-element, .conversation-container, [id^="message-content-id-"], [id="model-response-message-content"]'
+                );
             let turnId = '';
             if (turnContainer && turnContainer.id) {
                 turnId = turnContainer.id.replace(/^message-content-id-(r_)?/, '');
             }
             const img =
-                target.closest('single-image, [data-image-attachment-index], [data-test-id="image-card"]') ||
-                target.parentElement;
+                target.closest(
+                    'single-image, generated-image, [data-image-attachment-index], [data-test-id="image-card"]'
+                ) || target.parentElement;
             const attachIdx = img ? img.getAttribute('data-image-attachment-index') || '' : '';
             const orderIdx = target.getAttribute('data-ext-idx') || '';
             let finalIdx = turnId
@@ -406,14 +442,14 @@
     mainBtn.onmouseout = () => (mainBtn.style.transform = 'scale(1)');
 
     const panel = document.createElement('div');
-    panel.style.cssText = `background: #111827; color: white; width: 380px; max-height: 82vh; overflow-y: auto; padding: 16px; border-radius: 12px; margin-bottom: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); display: none; flex-direction: column; gap: 10px; border: 1px solid #374151; pointer-events: none;`;
+    panel.style.cssText = `background: #111827; color: white; width: 380px; max-height: 82vh; overflow-y: auto; padding: 16px; border-radius: 12px; margin-bottom: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); display: none; flex-direction: column; gap: 10px; border: 1px solid #374151; pointer-events: auto;`;
 
     const header = document.createElement('div');
     header.style.display = 'flex';
     header.style.justifyContent = 'space-between';
     header.style.alignItems = 'center';
     const title = document.createElement('div');
-    title.innerText = `${t('title')} v5.1.0`;
+    title.innerText = `${t('title')} v5.1.1`;
     title.style.fontWeight = 'bold';
     const closeBtn = document.createElement('div');
     closeBtn.innerText = '✕';
@@ -608,7 +644,7 @@
     function getStatusContainer(target) {
         return (
             target.closest(
-                'single-image, [data-image-attachment-index], .generated-image, [data-test-id="image-card"]'
+                'single-image, generated-image, [data-image-attachment-index], .generated-image, [data-test-id="image-card"]'
             ) || target.parentElement
         );
     }
@@ -654,7 +690,7 @@
             const hit = document.elementFromPoint(x, y);
             if (!hit) return false;
             if (hit === target || target.contains(hit)) return true;
-            if (hit.closest && hit.closest('#gemini-ext-root')) return true;
+            if (hit.closest && hit.closest('#gemini-ext-root')) return false;
             return false;
         } catch {
             return true;
@@ -675,28 +711,27 @@
         return rect.width > 0 && rect.height > 0;
     }
 
-    function getButtons() {
-        if (!buttonsDirty && cachedButtons) return cachedButtons;
+    function getButtons(opts) {
+        const includeDialog = !!(opts && opts.includeDialog);
+        const searchRoot = (opts && opts.root) || document;
+        if (!includeDialog && !opts && !buttonsDirty && cachedButtons) return cachedButtons;
         const preferred = Array.from(
-            document.querySelectorAll('[data-test-id="download-generated-image-button"], [data-test-id*="download"]')
+            searchRoot.querySelectorAll('[data-test-id="download-generated-image-button"], [data-test-id*="download"]')
         )
             .map((w) => (w.tagName === 'BUTTON' ? w : w.querySelector('button') || w))
-            .filter(
-                (b) =>
-                    b &&
-                    !b.closest('#gemini-ext-root') &&
-                    !b.closest('mat-dialog-container, dialog, [role="dialog"]') &&
-                    b.getBoundingClientRect &&
-                    b.getBoundingClientRect().width > 0 &&
-                    b.getBoundingClientRect().height > 0
-            );
+            .filter((b) => {
+                if (!b || b.closest('#gemini-ext-root')) return false;
+                if (!includeDialog && b.closest('mat-dialog-container, dialog, [role="dialog"]')) return false;
+                const r = b.getBoundingClientRect ? b.getBoundingClientRect() : null;
+                return r && r.width > 0 && r.height > 0;
+            });
         const result = preferred.length
             ? preferred
             : (function () {
-                  const allElements = Array.from(document.querySelectorAll('button, a, [role="button"]'));
+                  const allElements = Array.from(searchRoot.querySelectorAll('button, a, [role="button"]'));
                   return allElements.filter((el) => {
-                      if (el.closest('#gemini-ext-root') || el.closest('mat-dialog-container, dialog, [role="dialog"]'))
-                          return false;
+                      if (el.closest('#gemini-ext-root')) return false;
+                      if (!includeDialog && el.closest('mat-dialog-container, dialog, [role="dialog"]')) return false;
                       const aria = el.getAttribute('aria-label') || '';
                       const title = el.getAttribute('title') || '';
                       const tooltip = el.getAttribute('data-tooltip') || '';
@@ -706,16 +741,18 @@
                               ? U.isDownloadLabel({ aria: aria, title: title, tooltip: tooltip, text: text })
                               : /download/i.test(aria + title + tooltip + text);
                       if (!isDownload) return false;
-                      const rect = el.getBoundingClientRect();
+                      const rect = el.getBoundingClientRect ? el.getBoundingClientRect() : null;
                       return rect && rect.width > 0 && rect.height > 0;
                   });
               })();
         result.forEach((b, i) => {
             if (!b.getAttribute('data-ext-idx')) b.setAttribute('data-ext-idx', String(i));
         });
-        cachedButtons = result;
-        buttonsDirty = false;
-        return cachedButtons;
+        if (!includeDialog && !opts) {
+            cachedButtons = result;
+            buttonsDirty = false;
+        }
+        return result;
     }
 
     // --- GALLERY (My Stuff) ---
@@ -841,7 +878,6 @@
         set('stat-left', left);
         set('stat-rate', rate > 0 ? `${rate.toFixed(1)}/m` : '-');
         set('stat-eta', etaMs > 0 ? formatTime(etaMs) : '-');
-        set('stat-done', done);
         if (run.paused) updateBadge('II', '#F59E0B');
         else if (left > 0) updateBadge(String(left), '#b31412');
         else updateBadge('', '#b31412');
@@ -852,7 +888,7 @@
         try {
             const c =
                 target.closest(
-                    'single-image, [data-image-attachment-index], .generated-image, [data-test-id="image-card"]'
+                    'single-image, generated-image, [data-image-attachment-index], .generated-image, [data-test-id="image-card"]'
                 ) || target.parentElement;
             return c ? c.querySelector('img') : null;
         } catch {
@@ -1428,7 +1464,10 @@
                     }
                     await sleep(400);
                     waited += 400;
-                    const btns = getButtons();
+                    const modal = document.querySelector(
+                        '[role="dialog"], [aria-modal="true"], .modal-dialog, dialog[open], .test-modal, mat-dialog-container'
+                    );
+                    const btns = getButtons({ includeDialog: true, root: modal || document });
                     dlBtn = btns.find(isButtonReady) || btns[0] || null;
                 }
                 if (!dlBtn) {
@@ -1486,9 +1525,20 @@
                         });
                         if (!runActive(myRun)) return;
                         if (!download || !download.found) {
-                            log(`Card ${itemNum}: no download started.`);
-                            markTerminal(next, 'failed');
-                            saveRunStatus(key, 'failed');
+                            const retries = incRetries(next);
+                            log(`Card ${itemNum}: no download started (retry ${retries}).`);
+                            if (retries >= CONFIG.maxRetries) {
+                                log(`Failed Card ${itemNum}: no download after ${retries} attempts.`);
+                                markTerminal(next, 'failed');
+                                saveRunStatus(key, 'failed');
+                                updateBadge('!', '#EF4444');
+                            } else {
+                                setStatus(next, 'pending');
+                                run.activeTarget = null;
+                                await dismissGalleryModal();
+                                await sleep(backoffDelay(retries));
+                                continue;
+                            }
                         } else {
                             markTerminal(next, 'done');
                             log(`Card ${itemNum}: downloaded.`);
@@ -1497,9 +1547,21 @@
                             persistDownloadedKeys();
                         }
                     } else {
-                        log(`Card ${itemNum}: click failed.`);
-                        markTerminal(next, 'failed');
-                        saveRunStatus(key, 'failed');
+                        const retries = incRetries(next);
+                        log('Debugger Error: ' + (response ? response.msg : 'Unknown') + ' (retry ' + retries + ')');
+                        if (retries >= CONFIG.maxRetries) {
+                            log(`Failed Card ${itemNum} after ${retries} failures.`);
+                            markTerminal(next, 'failed');
+                            saveRunStatus(key, 'failed');
+                            updateBadge('!', '#EF4444');
+                        } else {
+                            statusText.innerText = 'Error. Retrying...';
+                            setStatus(next, 'pending');
+                            run.activeTarget = null;
+                            await dismissGalleryModal();
+                            await sleep(backoffDelay(retries));
+                            continue;
+                        }
                     }
                 } else {
                     log(`Card ${itemNum}: download not ready.`);
@@ -1546,6 +1608,7 @@
         statusText.innerText = `Retrying ${count} failed...`;
         run.running = true;
         bumpRunId();
+        run.selectedOnly = false;
         run.paused = false;
         run.stopRequested = false;
         run.skipRequested = false;
@@ -1608,6 +1671,10 @@
     // --- SPA NAVIGATION ---
     let lastHref = location.href;
     const spaNavInterval = setInterval(() => {
+        if (!isContextValid()) {
+            clearInterval(spaNavInterval);
+            return;
+        }
         if (location.href === lastHref) return;
         lastHref = location.href;
         if (run.running) finishRun('Page changed — stopped.', false);
