@@ -381,7 +381,7 @@ async function testContent() {
 
         // Target should be downloading
         const statusBefore = btn.getAttribute('data-ext-status');
-        assert('content: item is marked downloading initially pending', statusBefore === 'pending', statusBefore);
+        assert('content: item is marked downloading initially', statusBefore === 'downloading', statusBefore);
 
         // User clicks stop
         stopBtn.click();
