@@ -459,6 +459,40 @@ async function startRun(w, u) {
     check('same-index: both downloaded', w.__state.clicks.length === 2, w.__state.clicks.length);
   }
 
+  // 32 gallery modal fallback close button when Escape does not remove modal
+  {
+    const w = makeDom(galleryHtml(1));
+    let closeButtonClicked = false;
+    w.document.querySelectorAll('[data-test-id="image-card"]').forEach((c) => {
+      c.addEventListener('click', () => {
+        const m = w.document.createElement('div');
+        m.setAttribute('role', 'dialog');
+        const b = w.document.createElement('button');
+        b.setAttribute('data-test-id', 'download-generated-image-button');
+        b.setAttribute('aria-label', 'Download');
+        b.textContent = 'DL';
+        const cb = w.document.createElement('button');
+        cb.setAttribute('aria-label', 'Close dialog');
+        cb.addEventListener('click', () => { closeButtonClicked = true; m.remove(); });
+        m.appendChild(b);
+        m.appendChild(cb);
+        w.document.body.appendChild(m);
+      });
+    });
+    const origSendMessage = w.chrome.runtime.sendMessage;
+    w.chrome.runtime.sendMessage = function(msg, cb) {
+      if (msg.command === 'simulate_key') {
+        setTimeout(() => cb && cb({ status: 'success' }), 0);
+        return;
+      }
+      return origSendMessage.call(this, msg, cb);
+    };
+    const u = await loadAll(w);
+    await startRun(w, u);
+    check('gallery-fallback-close: close button clicked', closeButtonClicked === true, closeButtonClicked);
+    check('gallery-fallback-close: modal removed', !w.document.querySelector('[role="dialog"]'));
+  }
+
   console.log(`\nRESULT ${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 })().catch(e => { console.error('HARNESS ERROR', e); process.exit(2); });

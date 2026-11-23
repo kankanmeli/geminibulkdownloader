@@ -111,6 +111,13 @@ let noRefDoc;
 await new Promise(res => { onFilenameFn({ filename: 'C:\\Users\\x\\Downloads\\report.pdf', mime: 'application/pdf', referrer: '' }, (o) => { noRefDoc = o; res(); }); });
 check('empty-referrer document not organized', noRefDoc === undefined, noRefDoc);
 
+// trailing dots and spaces sanitized for Windows paths
+r = await send({ command: 'set_download_prefix', prefix: 'Windows Chat...   ' });
+check('prefix with trailing dots/spaces accepted', r.resp && r.resp.status === 'success', r.resp);
+let winSuggested;
+await new Promise(res => { onFilenameFn({ filename: 'C:\\Users\\x\\Downloads\\image.png', referrer: 'https://gemini.google.com/app/x' }, (o) => { winSuggested = o; res(); }); });
+check('trailing dots/spaces stripped in subfolder', winSuggested && winSuggested.filename === 'Windows Chat/image.png', winSuggested);
+
 // open folder
 r = await send({ command: 'open_downloads_folder' });
 check('open folder called', rec.showFolder === 1, rec.showFolder);

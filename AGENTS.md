@@ -1,7 +1,7 @@
 # AGENTS.md — Gemini Bulk Image Downloader
 
 Handoff document for any human or AI agent.
-Last updated: 2026-11-23 (v5.0.0).
+Last updated: 2026-11-23 (v5.0.1).
 
 ## 1. Project identity
 - **Name:** Gemini Bulk Image Downloader (Universal) — "Auto-Pilot Pro"
@@ -10,7 +10,7 @@ Last updated: 2026-11-23 (v5.0.0).
 - **Branch:** `main` (no tags/releases yet)
 - **Owner:** `kankanmeli` (personal GitHub)
 - **Local folder (sole working dir):** `/Users/akankanmeli/Downloads/projects/Gemini Bulk Image downloader/`
-- **Version:** 5.0.0 (manifest + package.json kept in sync via `npm run sync-version`)
+- **Version:** 5.0.1 (manifest + package.json kept in sync via `npm run sync-version`)
 
 ## 2. What it does
 Bulk-downloads high-resolution images from Google Gemini chats and the "My Stuff" (Images) gallery. Uses the Chrome Debugger API (`Input.dispatchMouseEvent`) to simulate real hardware clicks so browser user-activation restrictions do not block downloads.
@@ -107,3 +107,4 @@ Sections A–F of the original audit plus the v5.0 feature set are implemented:
 - E1–E6 (status labels, badge, retry failed, backoff, skip-downloaded, testing doc).
 - F1–F6 (utils/tests, async loop, lint/format, changelog, blob research note, no build step).
 - v5.0: rich stats, selection, real dedupe, organize, badge states, toast/open folder, SPA, gallery, low-res, i18n, reset/clear dedupe.
+- v5.0.1: gallery modal fallback close-button click on Escape failure; Windows path sanitization for trailing dots/spaces; 14-item audit feasibility test suite.

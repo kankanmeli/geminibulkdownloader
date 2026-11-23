@@ -676,7 +676,7 @@
 
     function currentPrefix() {
         const raw = (document.title || 'Gemini').replace(/ - Google Gemini.*/i, '').trim();
-        const safe = raw.replace(/[\x00-\x1F\x7F\\/:*?"<>|]+/g, '_').slice(0, 60) || 'Gemini';
+        const safe = raw.replace(/[\x00-\x1F\x7F\\/:*?"<>|]+/g, '_').replace(/[. ]+$/, '').slice(0, 60) || 'Gemini';
         const d = new Date();
         const stamp = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
         return `${safe}_${stamp}`;
@@ -935,6 +935,21 @@
     }
 
     // --- GALLERY QUEUE (open card -> download in modal -> close) ---
+    async function dismissGalleryModal() {
+        await sendMessagePromise({ command: 'simulate_key', key: 'Escape' });
+        await sleep(400);
+        try {
+            const modal = document.querySelector('[role="dialog"], [aria-modal="true"], .modal-dialog, dialog[open], .test-modal');
+            if (modal) {
+                const closeBtn = modal.querySelector('button[aria-label*="close" i], button[data-test-id*="close" i], button.close, [data-test-id="modal-close-button"]');
+                if (closeBtn && typeof closeBtn.click === 'function') {
+                    closeBtn.click();
+                    await sleep(300);
+                }
+            }
+        } catch (e) {}
+    }
+
     async function processGalleryQueue() {
         const myRun = run.id;
         try {
@@ -995,8 +1010,7 @@
                     log(`Card ${itemNum}: no download button in modal.`);
                     markTerminal(next, 'failed');
                     saveRunStatus(key, 'failed');
-                    await sendMessagePromise({ command: 'simulate_key', key: 'Escape' });
-                    await sleep(600);
+                    await dismissGalleryModal();
                     continue;
                 }
 
@@ -1050,8 +1064,7 @@
                     markTerminal(next, 'skipped');
                     saveRunStatus(key, 'skipped');
                 }
-                await sendMessagePromise({ command: 'simulate_key', key: 'Escape' });
-                await sleep(600);
+                await dismissGalleryModal();
                 if (!runActive(myRun)) return;
             }
         } catch (e) {

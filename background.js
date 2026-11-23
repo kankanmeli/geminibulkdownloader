@@ -256,7 +256,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             sendResponse({ status: "busy", msg: "Another Gemini run is active" });
             return true;
         }
-        downloadPrefix = (request.prefix || '').replace(/[\x00-\x1F\x7F\\/:*?"<>|]+/g, '_').trim();
+        downloadPrefix = (request.prefix || '').replace(/[\x00-\x1F\x7F\\/:*?"<>|]+/g, '_').replace(/[. ]+$/, '').trim();
         downloadPrefixTabId = tabId;
         prefixRestored = true;
         persistPrefix();
