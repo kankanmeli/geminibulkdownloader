@@ -4,7 +4,7 @@
 **Scope:** `extension/background.js`, `extension/content.js`, `extension/utils.js`, `tests/`  
 **Auditor:** Cross-Platform & Filesystem Security Auditor  
 **Date:** 2026-11-23  
-**Status:** Remediated & Verified (117/117 Automated Tests Passing)
+**Status:** Remediated & Verified (145/145 Automated Tests Passing across 5 Suites)
 
 ---
 
@@ -144,8 +144,8 @@ npm test
 
 ### Test Suite Execution Output
 ```
-> gemini-bulk-image-downloader@5.0.1 test
-> node tests/utils.test.js && node tests/background.test.js && node tests/integration.test.js && node tests/security.test.js
+> gemini-bulk-image-downloader@5.1.1 test
+> node tests/utils.test.js && node tests/background.test.js && node tests/integration.test.js && node tests/security.test.js && node tests/adversarial-concurrency.test.js
 
 PASS formatTime basic
 PASS backoffDelay
@@ -157,7 +157,8 @@ PASS isTerminalState
 PASS sanitizePrefix handles traversal, reserved names, and length
 PASS sanitizeFilename handles traversal, reserved names, and length
 PASS isGeminiUrl and isGeminiDownload
-done (10 passed)
+PASS isButtonVisible and isCoordinateInViewport
+done (11 passed)
 
 RESULT 33 passed, 0 failed (background.test.js)
 RESULT 57 passed, 0 failed (integration.test.js)
@@ -187,9 +188,46 @@ PASS 4.1 background: check_downloaded blocks cross-origin download history oracl
 PASS 4.2 background: wait_for_download does not leak unrelated user downloads
 PASS 4.3 background: onDeterminingFilename prevents subfolder escape via .. or reserved names
 
-RESULTS: 17 passed, 0 failed (security.test.js)
+=== SUITE 5: Zero-Trust Threat Hardening & Bypasses ===
+PASS 5.1 Unicode slash normalization and neutralization
+PASS 5.2 BiDi & RTLO character stripping (spoofing protection)
+PASS 5.3 Length truncation safe from Windows reserved names collision
+PASS 5.4 Dangerous executable extensions neutralized to .png
+PASS 5.5 Background rejects unauthorized sender and negative coordinates
+
+RESULTS: 22 passed, 0 failed (security.test.js)
+
+--- 1. Testing utils.js Edge Cases ---
+[PASS] utils: isDownloadLabel must reject title containing CSV
+[PASS] utils: isDownloadLabel must reject text containing Code
+[PASS] utils: isDownloadLabel must reject tooltip containing JSON
+[PASS] utils: formatTime(NaN) must not return NaNm NaNs
+[PASS] utils: formatTime(Infinity) must be handled safely
+
+--- 2. Testing background.js Concurrency & Message Handling ---
+[PASS] background: simulate_key on success must NOT say "key dispatch failed"
+[PASS] background: update_badge calls sendResponse synchronously, should NOT return true
+[PASS] background: unrecognized command must return false or error response, not hang listener
+[PASS] background: wait_for_download must tolerate minor clock skew / second-truncation (e.g. 1-2s grace)
+[PASS] background: download #9999 should not be matched twice by two separate image downloads
+
+--- 3. Testing content.js Lifecycle, UI Stuck States, & Edge Cases ---
+[PASS] content: SPA navigation interval was registered
+[PASS] content: SPA navigation interval MUST be cleared on pagehide/unload
+[PASS] content: item is marked downloading initially
+[PASS] content: stopped item must NOT remain stuck in "downloading" status
+[PASS] content: gallery modal opened during processing
+[PASS] content: gallery modal MUST be dismissed when run is stopped
+[PASS] content: an element with width=0 must NOT be considered ready/visible
+[PASS] content: clickPointClear must NOT return true when coordinates are offscreen (hit === null)
+[PASS] content: btn 1 is done
+[PASS] content: btn 2 is failed
+[PASS] content: btn 2 is now done after retry
+[PASS] content: stat-done reflects both items completed
+
+RESULTS: 22 passed, 0 failed (adversarial-concurrency.test.js)
 ========================================
-TOTAL: 117 tests passed, 0 failed
+TOTAL: 145 tests passed, 0 failed
 LINT: 0 errors
 TYPECHECK: 0 errors
 ```

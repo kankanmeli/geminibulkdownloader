@@ -18,15 +18,22 @@
     ns.WINDOWS_RESERVED_BASE_REGEX = /^(CON|PRN|AUX|NUL|COM[0-9]|LPT[0-9]|CONIN\$|CONOUT\$|CLOCK\$)$/i;
 
     /**
+     * Dangerous executable extensions that must never be downloaded or preserved.
+     */
+    ns.DANGEROUS_EXTENSIONS_REGEX = /^\.(exe|bat|cmd|ps1|vbs|js|hta|lnk|scr|msi|dll|com|pif|reg|vbe|wsf|wsh|cpl|jar)$/i;
+
+    /**
      * Format milliseconds as "Xm Ys".
      * @param {number} ms
      * @returns {string}
      */
     ns.formatTime = function (ms) {
         if (!isFinite(ms) || isNaN(ms) || ms < 0) ms = 0;
-        const seconds = Math.floor(ms / 1000);
-        const m = Math.floor(seconds / 60);
-        const s = seconds % 60;
+        const totalSeconds = Math.floor(ms / 1000);
+        const h = Math.floor(totalSeconds / 3600);
+        const m = Math.floor((totalSeconds % 3600) / 60);
+        const s = totalSeconds % 60;
+        if (h > 0) return `${h}h ${m}m ${s}s`;
         return `${m}m ${s}s`;
     };
 
@@ -86,13 +93,20 @@
         const title = (labels.title || '').toLowerCase();
         const tooltip = (labels.tooltip || '').toLowerCase();
         const text = (labels.text || '').toLowerCase();
-        const isDownload =
-            aria.includes('download') ||
-            title.includes('download') ||
-            tooltip.includes('download') ||
-            text.includes('download');
-        if (!isDownload) return false;
         const combined = aria + ' ' + title + ' ' + tooltip + ' ' + text;
+        const isDownload =
+            combined.includes('download') ||
+            combined.includes('descargar') ||
+            combined.includes('télécharger') ||
+            combined.includes('telecharger') ||
+            combined.includes('herunterladen') ||
+            combined.includes('scarica') ||
+            combined.includes('baixar') ||
+            combined.includes('ダウンロード') ||
+            combined.includes('다운로드') ||
+            combined.includes('下载') ||
+            combined.includes('下載');
+        if (!isDownload) return false;
         if (combined.includes('csv') || combined.includes('json') || combined.includes('code')) return false;
         return true;
     };
@@ -119,8 +133,20 @@
         maxLen = maxLen || 64;
         if (typeof raw !== 'string') return fallback;
 
+        // NFKC normalization converts compatibility characters (e.g. fullwidth slashes)
+        let clean = raw.normalize('NFKC');
+
+        // Strip BiDi controls, zero-width chars, and formatting characters
+        clean = clean.replace(/[\u200B-\u200D\uFEFF\u200E\u200F\u202A-\u202E\u2066-\u2069]/g, '');
+
+        // Decode URL-encoded traversal patterns (%2f, %5c)
+        clean = clean.replace(/%(?:2f|5c)/gi, '_');
+
+        // Replace alternative Unicode slashes (／, ∕, ⁄, ⧵, ＼)
+        clean = clean.replace(/[\uFF0F\u2044\u2215\u29F5\uFF3C]/g, '_');
+
         // Strip path traversal sequences like ../ or ..\ or leading slashes
-        let clean = raw.replace(/(\.\.[\/\\])+/g, '');
+        clean = clean.replace(/(\.\.[\/\\])+/g, '');
         clean = clean.replace(/^[\\\/]+/, '');
 
         // Strip trailing dots and spaces first to avoid turning them into underscores
@@ -150,14 +176,17 @@
             return fallback;
         }
 
-        // Check for Windows reserved device names (e.g. CON, AUX, NUL, COM1)
-        if (ns.WINDOWS_RESERVED_REGEX.test(clean)) {
-            clean = '_' + clean;
-        }
-
-        // Limit length to budget for Windows MAX_PATH (default <= 64 chars)
+        // Limit length to budget for Windows MAX_PATH (default <= 64 chars) BEFORE checking reserved names
         if (clean.length > maxLen) {
             clean = clean.slice(0, maxLen).replace(/[. ]+$/, '');
+        }
+
+        // Check for Windows reserved device names (e.g. CON, AUX, NUL, COM1) AFTER truncation
+        if (ns.WINDOWS_RESERVED_REGEX.test(clean)) {
+            clean = '_' + clean;
+            if (clean.length > maxLen) {
+                clean = clean.slice(0, maxLen);
+            }
         }
 
         return clean || fallback;
@@ -176,8 +205,17 @@
         maxLen = maxLen || 100;
         if (typeof name !== 'string') return defaultName;
 
-        // Extract filename from path (strip directories)
-        let clean = name.split(/[\\/]/).pop() || '';
+        // NFKC normalization converts compatibility characters
+        let clean = name.normalize('NFKC');
+
+        // Strip BiDi controls, zero-width chars, and formatting characters (RTLO spoofing prevention)
+        clean = clean.replace(/[\u200B-\u200D\uFEFF\u200E\u200F\u202A-\u202E\u2066-\u2069]/g, '');
+
+        // Replace alternative Unicode slashes
+        clean = clean.replace(/%(?:2f|5c)/gi, '_');
+
+        // Extract filename from path (strip directories across both ASCII and Unicode slashes)
+        clean = clean.split(/[\\/\uFF0F\u2044\u2215\u29F5\uFF3C]/).pop() || '';
 
         // Strip trailing dots and spaces first
         clean = clean.replace(/[. ]+$/, '');
@@ -201,13 +239,13 @@
         // Split stem and extension to handle Windows reserved names and preserve extension on truncation
         const dotIdx = clean.lastIndexOf('.');
         let stem = dotIdx > 0 ? clean.slice(0, dotIdx) : clean;
-        const ext = dotIdx > 0 ? clean.slice(dotIdx) : '';
+        let ext = dotIdx > 0 ? clean.slice(dotIdx) : '';
 
-        // Check Windows reserved device names (stem match)
-        if (ns.WINDOWS_RESERVED_BASE_REGEX.test(stem)) {
-            stem = '_' + stem;
-            clean = stem + ext;
+        // Prevent executable file creation: replace dangerous executable extensions with .png
+        if (ext && ns.DANGEROUS_EXTENSIONS_REGEX.test(ext)) {
+            ext = '.png';
         }
+        clean = stem + ext;
 
         // Truncate length to satisfy MAX_PATH budget while preserving extension
         if (clean.length > maxLen) {
@@ -217,6 +255,20 @@
                 clean = stem + ext;
             } else {
                 clean = clean.slice(0, maxLen).replace(/[. ]+$/, '');
+                const newDotIdx = clean.lastIndexOf('.');
+                stem = newDotIdx > 0 ? clean.slice(0, newDotIdx) : clean;
+                ext = newDotIdx > 0 ? clean.slice(newDotIdx) : '';
+            }
+        }
+
+        // Check Windows reserved device names (stem match) AFTER truncation
+        if (ns.WINDOWS_RESERVED_BASE_REGEX.test(stem)) {
+            stem = '_' + stem;
+            clean = stem + ext;
+            if (clean.length > maxLen) {
+                const maxStem = Math.max(1, maxLen - ext.length);
+                stem = ('_' + stem.slice(1)).slice(0, maxStem).replace(/[. ]+$/, '');
+                clean = stem + ext;
             }
         }
 

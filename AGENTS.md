@@ -1,7 +1,7 @@
 # AGENTS.md — Gemini Bulk Image Downloader
 
 Handoff document for any human or AI agent.
-Last updated: 2026-11-23 (v5.0.1).
+Last updated: 2026-11-24 (v5.1.1).
 
 ## 1. Project identity
 - **Name:** Gemini Bulk Image Downloader (Universal) — "Auto-Pilot Pro"
@@ -11,7 +11,7 @@ Last updated: 2026-11-23 (v5.0.1).
 - **Owner:** `kankanmeli` (personal GitHub)
 - **Local folder (sole working dir):** `/Users/akankanmeli/Downloads/projects/Gemini Bulk Image downloader/`
 - **Extension unpacked directory:** `/Users/akankanmeli/Downloads/projects/Gemini Bulk Image downloader/extension/` (~86 KB)
-- **Version:** 5.0.1 (manifest + package.json kept in sync via `npm run sync-version`)
+- **Version:** 5.1.1 (manifest + package.json kept in sync via `npm run sync-version`)
 
 ## 2. What it does
 Bulk-downloads high-resolution images from Google Gemini chats and the "My Stuff" (Images) gallery. Uses the Chrome Debugger API (`Input.dispatchMouseEvent`) to simulate real hardware clicks so browser user-activation restrictions do not block downloads.
@@ -25,17 +25,22 @@ Bulk-downloads high-resolution images from Google Gemini chats and the "My Stuff
 | `extension/content.js` | UI panel + queue engine: scan, normal queue, gallery queue, selection mode, rich stats, i18n, SPA handling, low-res detection, dedupe, toast, reset. |
 | `extension/utils.js` | Pure helpers (formatTime, backoffDelay, storageKey, imageKey, pruneKeys, isDownloadLabel, isTerminalState). Loaded before content.js; also Node-requireable. |
 | `extension/icons/` | 16/48/128 PNG icons. |
-| `tests/utils.test.js` | Node unit tests for pure helpers. |
-| `tests/background.test.js` | Mocked Chrome service-worker tests. |
-| `tests/integration.test.js` | JSDOM content-script and queue tests. |
+| `tests/utils.test.js` | Node unit tests for pure helpers (11 tests). |
+| `tests/background.test.js` | Mocked Chrome service-worker tests (33 tests). |
+| `tests/integration.test.js` | JSDOM content-script and queue tests (57 tests). |
+| `tests/security.test.js` | Filesystem security, Windows constraints & download oracle protection tests (22 tests). |
+| `tests/adversarial-concurrency.test.js` | Adversarial concurrency, state machine & lifecycle tests (22 tests). |
 | `scripts/sync-version.js` | Copies package.json version into extension/manifest.json. |
 | `.github/workflows/ci.yml` | CI: npm install, test, lint, typecheck. |
 | `README.md` | User-facing docs. |
-| `TESTING.md` | Manual + automated test checklist. |
+| `TESTING.md` | Manual + automated test checklist across all 5 test suites (145 tests). |
+| `SECURITY_AUDIT_REPORT.md` | Cross-platform filesystem & download security audit report. |
+| `DOM_BREAKER_REPORT.md` | Gemini DOM inspection, viewport collision & layout stress-test report. |
 | `CHANGELOG.md` | Version history. |
 | `AGENTS.md` | This file. |
 | `LICENSE` | MIT. |
-| `jsconfig.json` / `types/globals.d.ts` | Editor type-checking for helpers. |
+| `package.json` | Project scripts, dependencies, and metadata. |
+| `jsconfig.json` / `types/globals.d.ts` | Editor type-checking for helpers, Chrome APIs, and DOM elements. |
 | `eslint.config.mjs` | ESLint flat config. |
 | `.prettierrc` | Prettier config. |
 
@@ -107,9 +112,11 @@ Debugger stays attached for the batch; detached on finish/stop/unload or user de
 - Commit style: short imperative subject + Codebuff footer.
 
 ## 11. History (implemented)
-Sections A–F of the original audit plus the v5.0 feature set are implemented:
+Sections A–F of the original audit plus the v5.0–v5.1.1 feature set are implemented:
 - A1–A5 speed; B1–B7 reliability; C1–C6 bugs (C7 icons now done); D2/D4/D5/D6.
 - E1–E6 (status labels, badge, retry failed, backoff, skip-downloaded, testing doc).
 - F1–F6 (utils/tests, async loop, lint/format, changelog, blob research note, no build step).
 - v5.0: rich stats, selection, real dedupe, organize, badge states, toast/open folder, SPA, gallery, low-res, i18n, reset/clear dedupe.
 - v5.0.1: gallery modal fallback close-button click on Escape failure; Windows path sanitization for trailing dots/spaces; 14-item audit feasibility test suite.
+- v5.1.0: filesystem security (path traversal, Windows reserved names, MAX_PATH length budgets); download history privacy/oracle protection (`isGeminiUrl`, `isGeminiDownload`); dynamic chat scrolling (`infinite-scroller.chat-history`); badge repositioning (`top: 6px; left: 6px;`); modal dialog isolation; viewport bounds & occlusion hardening; immutable turn deduplication; expanded to 145 automated tests across 5 test suites.
+- v5.1.1: MV3 service worker race condition & cold-start polling fallback (`chrome.downloads.search`); `attachedTabs` session storage persistence; gallery modal download detection & selector alignment (`opts.includeDialog`, direct modal querying); gallery download retry loop with exponential backoff and modal dismissal; async filename determination return discipline (`return true`); dynamic download MIME & state updates (`chrome.downloads.onChanged`); live Gemini custom element tag alignment (`<generated-image>`, `response-element`); debugger click hit-testing occlusion fix (returning `false` on `#gemini-ext-root` hit); layout optimization (cached `getBoundingClientRect()`); UI & lifecycle hardening.

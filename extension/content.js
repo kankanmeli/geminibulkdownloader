@@ -1,7 +1,13 @@
 // @ts-nocheck
-// Gemini Bulk Downloader - Content Script (v5.1)
+// Gemini Bulk Downloader - Content Script (v5.1.1)
 
 (function () {
+    if (typeof window.__geminiBulkCleanup === 'function') {
+        try {
+            window.__geminiBulkCleanup();
+        } catch {}
+    }
+
     const existingRoot = document.getElementById('gemini-ext-root');
     if (existingRoot) {
         try {
@@ -37,6 +43,7 @@
     const STRINGS = {
         en: {
             title: 'Gemini Auto-Pilot',
+            mainBtn: '⬇️ Auto-Pilot Pro',
             start: 'Start Queue',
             load: 'Load All',
             pause: 'Pause',
@@ -44,6 +51,8 @@
             force: 'Force DL',
             skip: 'Skip',
             stop: 'Stop',
+            stopped: 'Stopped.',
+            paused: 'Paused.',
             retry: 'Retry Failed',
             select: 'Select',
             selecting: 'Selecting...',
@@ -55,14 +64,20 @@
             done: 'Done',
             skipped: 'Skipped',
             failed: 'Failed',
+            pending: 'Pending',
+            downloading: 'Downloading',
+            lowres: 'Low-res',
             left: 'Left',
             rate: 'Rate',
             eta: 'ETA',
             complete: 'All downloads finished!',
-            noSelection: 'No images selected.'
+            noSelection: 'No images selected.',
+            noImages: 'No images found.',
+            noImagesTryLoad: "No images found. Try 'Load All'?"
         },
         es: {
             title: 'Gemini Auto-Pilot',
+            mainBtn: '⬇️ Auto-Pilot Pro',
             start: 'Iniciar cola',
             load: 'Cargar todo',
             pause: 'Pausar',
@@ -70,6 +85,8 @@
             force: 'Forzar',
             skip: 'Saltar',
             stop: 'Detener',
+            stopped: 'Detenido.',
+            paused: 'Pausado.',
             retry: 'Reintentar fallidos',
             select: 'Seleccionar',
             selecting: 'Seleccionando...',
@@ -81,14 +98,20 @@
             done: 'Hecho',
             skipped: 'Omitido',
             failed: 'Fallido',
+            pending: 'Pendiente',
+            downloading: 'Descargando',
+            lowres: 'Baja resolucion',
             left: 'Restante',
             rate: 'Ritmo',
             eta: 'Tiempo',
             complete: 'Todas las descargas terminadas.',
-            noSelection: 'No hay imagenes seleccionadas.'
+            noSelection: 'No hay imagenes seleccionadas.',
+            noImages: 'No se encontraron imagenes.',
+            noImagesTryLoad: "No se encontraron imagenes. ¿Intentar 'Cargar todo'?"
         },
         fr: {
             title: 'Gemini Auto-Pilot',
+            mainBtn: '⬇️ Auto-Pilot Pro',
             start: 'Demarrer',
             load: 'Tout charger',
             pause: 'Pause',
@@ -96,6 +119,8 @@
             force: 'Forcer',
             skip: 'Passer',
             stop: 'Arreter',
+            stopped: 'Arrete.',
+            paused: 'En pause.',
             retry: 'Reessayer',
             select: 'Selectionner',
             selecting: 'Selection...',
@@ -107,14 +132,20 @@
             done: 'Termine',
             skipped: 'Ignore',
             failed: 'Echec',
+            pending: 'En attente',
+            downloading: 'Telechargement',
+            lowres: 'Basse resolution',
             left: 'Restant',
             rate: 'Debit',
             eta: 'Temps',
             complete: 'Telechargements termines.',
-            noSelection: 'Aucune image selectionnee.'
+            noSelection: 'Aucune image selectionnee.',
+            noImages: 'Aucune image trouvee.',
+            noImagesTryLoad: "Aucune image trouvee. Essayer 'Tout charger' ?"
         },
         de: {
             title: 'Gemini Auto-Pilot',
+            mainBtn: '⬇️ Auto-Pilot Pro',
             start: 'Start',
             load: 'Alle laden',
             pause: 'Pause',
@@ -122,6 +153,8 @@
             force: 'Erzwingen',
             skip: 'Uberspringen',
             stop: 'Stopp',
+            stopped: 'Gestoppt.',
+            paused: 'Pausiert.',
             retry: 'Fehlgeschlagene',
             select: 'Auswahlen',
             selecting: 'Auswahl...',
@@ -133,14 +166,20 @@
             done: 'Fertig',
             skipped: 'Ubersprungen',
             failed: 'Fehler',
+            pending: 'Ausstehend',
+            downloading: 'Wird heruntergeladen',
+            lowres: 'Niedrige Auflosung',
             left: 'Rest',
             rate: 'Rate',
             eta: 'Zeit',
             complete: 'Alle Downloads fertig.',
-            noSelection: 'Keine Bilder ausgewahlt.'
+            noSelection: 'Keine Bilder ausgewahlt.',
+            noImages: 'Keine Bilder gefunden.',
+            noImagesTryLoad: "Keine Bilder gefunden. 'Alle laden' versuchen?"
         },
         hi: {
             title: 'Gemini Auto-Pilot',
+            mainBtn: '⬇️ Auto-Pilot Pro',
             start: 'Queue shuru karein',
             load: 'Sab load karein',
             pause: 'Rokеin',
@@ -148,6 +187,8 @@
             force: 'Force DL',
             skip: 'Skip',
             stop: 'Band karein',
+            stopped: 'Ruka hua.',
+            paused: 'Roka gaya.',
             retry: 'Failed retry',
             select: 'Chunein',
             selecting: 'Chun rahe hain...',
@@ -159,14 +200,20 @@
             done: 'Ho gaya',
             skipped: 'Chhoda',
             failed: 'Fail',
+            pending: 'Lambit',
+            downloading: 'Download ho raha hai',
+            lowres: 'Kam resolution',
             left: 'Bacha',
             rate: 'Rate',
             eta: 'Samay',
             complete: 'Sab downloads poore.',
-            noSelection: 'Koi image nahi chuni.'
+            noSelection: 'Koi image nahi chuni.',
+            noImages: 'Koi image nahi mili.',
+            noImagesTryLoad: "Koi image nahi mili. 'Sab load karein' try karein?"
         },
         ja: {
             title: 'Gemini Auto-Pilot',
+            mainBtn: '⬇️ Auto-Pilot Pro',
             start: '開始',
             load: 'すべて読み込む',
             pause: '一時停止',
@@ -174,6 +221,8 @@
             force: '強制DL',
             skip: 'スキップ',
             stop: '停止',
+            stopped: '停止しました。',
+            paused: '一時停止中。',
             retry: '失敗を再試行',
             select: '選択',
             selecting: '選択中...',
@@ -185,11 +234,16 @@
             done: '完了',
             skipped: 'スキップ',
             failed: '失敗',
+            pending: '保留中',
+            downloading: 'ダウンロード中',
+            lowres: '低解像度',
             left: '残り',
             rate: '速度',
             eta: '予想',
             complete: 'すべて完了しました。',
-            noSelection: '画像が選択されていません。'
+            noSelection: '画像が選択されていません。',
+            noImages: '画像が見つかりません。',
+            noImagesTryLoad: '画像が見つかりません。「すべて読み込む」を試しますか？'
         }
     };
     function t(key) {
@@ -247,7 +301,7 @@
     let selectionMode = false;
     let totalFound = 0;
     let downloadedKeys = new Set();
-    let runStatus = {};
+    let runStatus = Object.create(null);
     let logLines = [];
 
     // --- BUTTON CACHE ---
@@ -272,13 +326,16 @@
                             return;
                         }
                         const v = res ? res[storageKey()] : null;
-                        runStatus = v && typeof v === 'object' && !Array.isArray(v) ? v : {};
+                        runStatus =
+                            v && typeof v === 'object' && !Array.isArray(v)
+                                ? Object.assign(Object.create(null), v)
+                                : Object.create(null);
                         resolve(runStatus);
                     });
                     return;
                 }
             } catch {}
-            runStatus = {};
+            runStatus = Object.create(null);
             resolve(runStatus);
         });
     }
@@ -297,7 +354,7 @@
         } catch {}
     }
     function clearRunStatus() {
-        runStatus = {};
+        runStatus = Object.create(null);
         try {
             if (chrome && chrome.storage && chrome.storage.local) {
                 chrome.storage.local.remove(storageKey(), () => {
@@ -370,11 +427,11 @@
             const turnContainer =
                 target.closest &&
                 target.closest(
-                    'response-element, .conversation-container, [id^="message-content-id-"], [id="model-response-message-content"]'
+                    '[id^="model-response-message-contentr_"], [id^="message-content-id-"], .conversation-container[id]'
                 );
             let turnId = '';
             if (turnContainer && turnContainer.id) {
-                turnId = turnContainer.id.replace(/^message-content-id-(r_)?/, '');
+                turnId = turnContainer.id.replace(/^(message-content-id-|model-response-message-content)?(r_)?/, '');
             }
             const img =
                 target.closest(
@@ -405,8 +462,9 @@
         buttonObserver = new MutationObserver((mutations) => {
             const hasExternal = mutations.some((m) => {
                 const t = m.target;
-                if (!t || !t.closest) return true;
-                return !t.closest('#gemini-ext-root') && !t.closest('.gemini-dl-status');
+                const el = t && t.nodeType === 1 ? t : t && t.parentElement;
+                if (!el || !el.closest) return false;
+                return !el.closest('#gemini-ext-root') && !el.closest('.gemini-dl-status');
             });
             if (!hasExternal) return;
             if (pending) return;
@@ -436,7 +494,7 @@
     root.style.cssText = `position: fixed; bottom: 20px; right: 20px; z-index: 999999; font-family: 'Google Sans', Roboto, sans-serif; pointer-events: none;`;
 
     const mainBtn = document.createElement('button');
-    mainBtn.innerText = '⬇️ Auto-Pilot Pro';
+    mainBtn.innerText = t('mainBtn');
     mainBtn.style.cssText = `background: #b31412; color: white; border: none; padding: 12px 24px; border-radius: 24px; font-weight: 500; font-size: 14px; cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.2); transition: transform 0.2s; pointer-events: auto;`;
     mainBtn.onmouseover = () => (mainBtn.style.transform = 'scale(1.05)');
     mainBtn.onmouseout = () => (mainBtn.style.transform = 'scale(1)');
@@ -538,8 +596,8 @@
             run.stopRequested = true;
             run.paused = false;
             log('Stopped by user.');
-            statusText.innerText = 'Stopped.';
-            finishRun('Stopped.', false);
+            statusText.innerText = t('stopped');
+            finishRun(t('stopped'), false);
         }
     });
     const forceBtn = createBtn(t('force'), '#059669', () => {
@@ -673,7 +731,9 @@
             lowres: '#F97316'
         };
         span.style.background = colors[status] || '#6B7280';
-        span.innerText = status.charAt(0).toUpperCase() + status.slice(1);
+        const statusLabel = t(status);
+        span.innerText =
+            statusLabel && statusLabel !== status ? statusLabel : status.charAt(0).toUpperCase() + status.slice(1);
     }
     function getRetries(btn) {
         return parseInt((btn && btn.getAttribute('data-ext-retries')) || '0', 10);
@@ -745,20 +805,22 @@
                       return rect && rect.width > 0 && rect.height > 0;
                   });
               })();
-        result.forEach((b, i) => {
+        const unique = Array.from(new Set(result));
+        unique.forEach((b, i) => {
             if (!b.getAttribute('data-ext-idx')) b.setAttribute('data-ext-idx', String(i));
         });
         if (!includeDialog && !opts) {
-            cachedButtons = result;
+            cachedButtons = unique;
             buttonsDirty = false;
         }
-        return result;
+        return unique;
     }
 
     // --- GALLERY (My Stuff) ---
     function isGalleryPage() {
         return (
             location.pathname.startsWith('/images') ||
+            location.pathname.startsWith('/library') ||
             !!document.querySelector('[data-test-id="images-page-container"]')
         );
     }
@@ -766,6 +828,7 @@
         let cards = Array.from(document.querySelectorAll('[data-test-id="image-card"][role="button"]'));
         if (!cards.length) cards = Array.from(document.querySelectorAll('.image-card[data-test-id="image-card"]'));
         if (!cards.length) cards = Array.from(document.querySelectorAll('[data-test-id="image-card"]'));
+        if (!cards.length) cards = Array.from(document.querySelectorAll('button[aria-label^="Preview or open"]'));
         // keep innermost candidates only (host + inner share the test-id)
         const innermost = cards.filter((c) => !cards.some((o) => o !== c && c.contains(o)));
         const visible = innermost.filter((c) => {
@@ -946,6 +1009,7 @@
     function getChatScroller() {
         return (
             document.querySelector('infinite-scroller.chat-history, [data-test-id="chat-history-container"]') ||
+            document.querySelector('.chat-history-scroll-container infinite-scroller') ||
             document.querySelector('infinite-scroller') ||
             document.scrollingElement ||
             document.documentElement ||
@@ -971,13 +1035,20 @@
             let totalHeight = isWindow ? document.body.scrollHeight : scroller.scrollHeight;
             let currentScroll = 0;
             const clientHeight = isWindow ? window.innerHeight : scroller.clientHeight;
-            const step = Math.floor(clientHeight * CONFIG.scrollStepFactor);
-            while (currentScroll < totalHeight) {
+            const step = Math.max(100, Math.floor((clientHeight || 500) * CONFIG.scrollStepFactor));
+            let iterations = 0;
+            const maxIterations = 2000;
+            while (currentScroll < totalHeight && iterations < maxIterations) {
+                if (run.stopRequested || !isContextValid()) {
+                    log('Scan stopped.');
+                    break;
+                }
                 if (isWindow) window.scrollTo(0, currentScroll);
                 else scroller.scrollTop = currentScroll;
                 await sleep(CONFIG.scrollDelayMs);
                 currentScroll += step;
                 totalHeight = isWindow ? document.body.scrollHeight : scroller.scrollHeight;
+                iterations++;
             }
             if (isWindow) window.scrollTo(0, document.body.scrollHeight);
             else scroller.scrollTop = scroller.scrollHeight;
@@ -1091,7 +1162,9 @@
 
         try {
             await loadDownloadedKeys();
+            if (!runActive(myRun)) return;
             const prefixResp = await sendMessagePromise({ command: 'set_download_prefix', prefix: currentPrefix() });
+            if (!runActive(myRun)) return;
             if (prefixResp && prefixResp.status === 'busy') {
                 log('Another Gemini run is already organizing downloads.');
                 finishRun('Another run is active. Finish it first.', false);
@@ -1104,8 +1177,8 @@
             const targets = run.selectedOnly ? getTargets().filter(isSelected) : getTargets();
             totalFound = targets.length;
             if (totalFound === 0) {
-                log(run.selectedOnly ? t('noSelection') : "No images found. Try 'Load All'?");
-                finishRun(run.selectedOnly ? t('noSelection') : 'No images found.', false);
+                log(run.selectedOnly ? t('noSelection') : t('noImagesTryLoad'));
+                finishRun(run.selectedOnly ? t('noSelection') : t('noImages'), false);
                 return;
             }
 
@@ -1115,6 +1188,7 @@
             });
 
             await loadRunStatus();
+            if (!runActive(myRun)) return;
             let resumed = 0;
             for (const x of targets) {
                 x.removeAttribute('data-ext-skipped');
@@ -1145,6 +1219,30 @@
             finishRun('Error — stopped. Click Start to resume.', false);
             updateBadge('!', '#EF4444');
         }
+    }
+
+    async function interruptibleSleep(ms, myRun) {
+        const step = 200;
+        let elapsed = 0;
+        while (elapsed < ms) {
+            if (!runActive(myRun) || run.stopRequested || run.skipRequested || run.fastForward) {
+                break;
+            }
+            await sleep(Math.min(step, ms - elapsed));
+            elapsed += step;
+        }
+    }
+
+    async function waitForModalDismissed(timeoutMs = 3000) {
+        const start = Date.now();
+        while (Date.now() - start < timeoutMs) {
+            const modal = document.querySelector(
+                '[role="dialog"], [aria-modal="true"], .modal-dialog, dialog[open], mat-dialog-container'
+            );
+            if (!modal) return true;
+            await sleep(100);
+        }
+        return false;
     }
 
     // --- NORMAL QUEUE ---
@@ -1331,7 +1429,7 @@
                         statusText.innerText = 'No download started. Retrying...';
                         setStatus(nextTarget, 'pending');
                         run.activeTarget = null;
-                        await sleep(backoffDelay(retries));
+                        await interruptibleSleep(backoffDelay(retries), myRun);
                         continue;
                     }
                     markTerminal(nextTarget, 'done');
@@ -1358,7 +1456,7 @@
                     statusText.innerText = 'Error. Retrying...';
                     setStatus(nextTarget, 'pending');
                     run.activeTarget = null;
-                    await sleep(backoffDelay(retries));
+                    await interruptibleSleep(backoffDelay(retries), myRun);
                     if (!runActive(myRun)) return;
                 }
             }
@@ -1448,6 +1546,8 @@
                 }
                 if (!runActive(myRun)) return;
 
+                await waitForModalDismissed(2000);
+                if (!runActive(myRun)) return;
                 next.click();
                 let dlBtn = null;
                 let waited = 0;
@@ -1536,7 +1636,7 @@
                                 setStatus(next, 'pending');
                                 run.activeTarget = null;
                                 await dismissGalleryModal();
-                                await sleep(backoffDelay(retries));
+                                await interruptibleSleep(backoffDelay(retries), myRun);
                                 continue;
                             }
                         } else {
@@ -1559,7 +1659,7 @@
                             setStatus(next, 'pending');
                             run.activeTarget = null;
                             await dismissGalleryModal();
-                            await sleep(backoffDelay(retries));
+                            await interruptibleSleep(backoffDelay(retries), myRun);
                             continue;
                         }
                     }
@@ -1607,7 +1707,7 @@
         log(`Retrying ${count} failed image(s).`);
         statusText.innerText = `Retrying ${count} failed...`;
         run.running = true;
-        bumpRunId();
+        const myRun = bumpRunId();
         run.selectedOnly = false;
         run.paused = false;
         run.stopRequested = false;
@@ -1622,6 +1722,7 @@
         retryFailedBtn.disabled = true;
         startButtonObserver();
         await sendMessagePromise({ command: 'set_download_prefix', prefix: currentPrefix() });
+        if (!runActive(myRun)) return;
         if (galleryMode) processGalleryQueue();
         else processQueue();
     }
@@ -1688,7 +1789,7 @@
         log('Page changed; ready for the new view.');
     }, 1000);
 
-    function handleUnload() {
+    function fullCleanup() {
         try {
             clearInterval(spaNavInterval);
         } catch {}
@@ -1697,10 +1798,28 @@
         run.stopRequested = false;
         stopButtonObserver();
         try {
+            document.removeEventListener('click', handleSelectionClick, true);
+        } catch {}
+        try {
+            window.removeEventListener('beforeunload', handleUnload);
+            window.removeEventListener('pagehide', handleUnload);
+        } catch {}
+        try {
             if (isContextValid()) chrome.runtime.sendMessage({ command: 'detach' });
         } catch {}
         updateBadge('', '#b31412');
+        const rootEl = document.getElementById('gemini-ext-root');
+        if (rootEl) {
+            try {
+                rootEl.remove();
+            } catch {}
+        }
     }
+    function handleUnload() {
+        fullCleanup();
+    }
+    window.__geminiBulkCleanup = fullCleanup;
+
     try {
         window.addEventListener('beforeunload', handleUnload);
         window.addEventListener('pagehide', handleUnload);

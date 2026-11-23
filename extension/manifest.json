@@ -9,6 +9,9 @@
     "storage",
     "downloads"
   ],
+  "host_permissions": [
+    "https://gemini.google.com/*"
+  ],
   "action": {
     "default_title": "Gemini Bulk Image Downloader",
     "default_icon": {

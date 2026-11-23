@@ -533,6 +533,118 @@ async function runAll() {
         }
     );
 
+    console.log('\n=== SUITE 5: Zero-Trust Threat Hardening & Bypasses ===');
+
+    test('5.1 Unicode slash normalization and neutralization', () => {
+        // Fullwidth solidus U+FF0F
+        assert.strictEqual(U.sanitizePrefix('..／..／Windows', 'Gemini'), 'Windows');
+        assert.strictEqual(U.sanitizeFilename('..／..／cmd.exe', 'image.png'), 'cmd.png');
+        assert.strictEqual(U.sanitizePrefix('Project／Folder', 'Gemini'), 'Project_Folder');
+
+        // Division slash U+2215 & Fraction slash U+2044
+        assert.strictEqual(U.sanitizeFilename('sub∕folder∕test.png', 'image.png'), 'test.png');
+        assert.strictEqual(U.sanitizeFilename('sub⁄folder⁄pic.png', 'image.png'), 'pic.png');
+
+        // Fullwidth reverse solidus U+FF3C
+        assert.strictEqual(U.sanitizeFilename('..＼..＼exploit.png', 'image.png'), 'exploit.png');
+    });
+
+    test('5.2 BiDi & RTLO character stripping (spoofing protection)', () => {
+        const rtloSpoof = 'photo\u202Egnp.exe';
+        const sanitized = U.sanitizeFilename(rtloSpoof, 'image.png');
+        assert.strictEqual(sanitized, 'photognp.png', 'RTLO character must be stripped and .exe neutralized');
+        assert.ok(!sanitized.includes('\u202E'), 'RTLO character U+202E must not be present');
+
+        // Zero-width characters U+200B and U+FEFF
+        assert.strictEqual(U.sanitizeFilename('test\u200B\uFEFF.png', 'image.png'), 'test.png');
+    });
+
+    test('5.3 Length truncation safe from Windows reserved names collision', () => {
+        // Prefix truncation must not leave CON
+        const prefixRes = U.sanitizePrefix('CON_long_name', 'Gemini', 3);
+        assert.notStrictEqual(prefixRes.toUpperCase(), 'CON', 'Truncated prefix must not be reserved name CON');
+        assert.ok(prefixRes.length <= 3, 'Truncated prefix must obey maxLen');
+
+        // Filename stem truncation must not leave NUL
+        const fileRes = U.sanitizeFilename('NUL_long_name.png', 'image.png', 7);
+        assert.notStrictEqual(fileRes.toLowerCase(), 'nul.png', 'Truncated filename must not be reserved NUL.png');
+        assert.ok(fileRes.length <= 7, 'Truncated filename must obey maxLen');
+    });
+
+    test('5.4 Dangerous executable extensions neutralized to .png', () => {
+        const dangerous = ['malware.exe', 'script.bat', 'task.cmd', 'payload.ps1', 'macro.vbs', 'agent.js', 'app.hta'];
+        for (const file of dangerous) {
+            const clean = U.sanitizeFilename(file, 'image.png');
+            assert.ok(clean.endsWith('.png'), `${file} must be neutralized to end with .png, got ${clean}`);
+        }
+    });
+
+    await testAsync('5.5 Background rejects unauthorized sender and negative coordinates', async () => {
+        let bgOnMessage;
+        const mockChrome = {
+            runtime: {
+                id: 'legit-ext-id',
+                onMessage: {
+                    addListener(fn) {
+                        bgOnMessage = fn;
+                    }
+                },
+                lastError: null
+            },
+            debugger: {
+                attach(d, v, cb) {
+                    cb();
+                },
+                sendCommand(d, m, p, cb) {
+                    cb();
+                },
+                detach() {},
+                onDetach: { addListener() {} }
+            },
+            action: { setBadgeText() {}, setBadgeBackgroundColor() {} },
+            downloads: {
+                search(q, cb) {
+                    cb([]);
+                },
+                showDefaultFolder() {},
+                onCreated: { addListener() {} },
+                onDeterminingFilename: { addListener() {} }
+            },
+            storage: {
+                session: {
+                    get(k, cb) {
+                        cb({});
+                    },
+                    set(o, cb) {
+                        if (cb) cb();
+                    }
+                }
+            },
+            tabs: { onRemoved: { addListener() {} }, onUpdated: { addListener() {} } }
+        };
+
+        global.chrome = mockChrome;
+        delete require.cache[require.resolve(path.join(ROOT, 'extension', 'background.js'))];
+        require(path.join(ROOT, 'extension', 'background.js'));
+
+        const sendMsg = (req, sender) => new Promise((resolve) => bgOnMessage(req, sender, resolve));
+
+        // Negative coordinates rejected
+        const negRes = await sendMsg(
+            { command: 'simulate_click', x: -10, y: 50 },
+            { tab: { id: 105, url: 'https://gemini.google.com/app' } }
+        );
+        assert.strictEqual(negRes.status, 'error', 'Negative X coordinate must return error');
+
+        // Sender with external non-Gemini URL rejected
+        const evilRes = await sendMsg(
+            { command: 'simulate_click', x: 10, y: 10 },
+            { tab: { id: 105, url: 'https://evil.com/' } }
+        );
+        assert.strictEqual(evilRes.status, 'error', 'Non-Gemini tab sender must return error');
+        assert.strictEqual(evilRes.msg, 'Unauthorized sender');
+    });
+
     console.log(`\n========================================`);
     console.log(`RESULTS: ${pass} passed, ${fail} failed`);
     console.log(`========================================`);

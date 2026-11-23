@@ -118,10 +118,16 @@ global.chrome = {
         }
     },
     tabs: {
-        onRemoved: { addListener() {} },
+        onRemoved: {
+            addListener(fn) {
+                tabsOnRemovedFn = fn;
+            }
+        },
         onUpdated: { addListener() {} }
     }
 };
+
+let tabsOnRemovedFn = null;
 
 // Load background.js
 require(path.join(ROOT, 'extension', 'background.js'));
@@ -222,6 +228,19 @@ async function testBackground() {
             res1.response && res1.response.found === true && res2.response && res2.response.found === false,
             { res1: res1.response, res2: res2.response }
         );
+    }
+
+    // Bug 2.6: downloadWaiters cleanup on tab removal
+    {
+        bgSend({ command: 'wait_for_download', since: Date.now(), timeout: 10000 }, { tab: { id: 200 } });
+        if (typeof tabsOnRemovedFn === 'function') {
+            tabsOnRemovedFn(200);
+        }
+        const res = await bgSend(
+            { command: 'check_downloaded', url: 'https://gemini.google.com/test.png' },
+            { tab: { id: 100 } }
+        );
+        assert('background: tab close handling executes cleanly', res.response && res.response.status === 'success');
     }
 }
 
@@ -533,6 +552,37 @@ async function testContent() {
         // stat-done after retrying 1 failed image should be 2 total (or 1 for the retry run), not a corrupted state
         assert('content: btn 2 is now done after retry', btns[1].getAttribute('data-ext-done') === 'true');
         assert('content: stat-done reflects both items completed', statDone === '2', { statDone });
+    }
+
+    // Bug 3.7: Rapid re-entrant startQueue -> resetRun -> startQueue
+    {
+        const w = makeContentDom(
+            '<single-image><button data-test-id="download-generated-image-button">DL</button></single-image>'
+        );
+        const allBtns = [...w.document.querySelectorAll('#gemini-ext-root button')];
+        const startBtn = allBtns.find((b) => b.textContent === 'Start Queue');
+        const resetBtn = allBtns.find((b) => b.textContent === 'Reset');
+        let concurrentClicks = 0;
+        let maxConcurrentClicks = 0;
+        w.chrome.runtime.sendMessage = function (msg, cb) {
+            if (msg.command === 'simulate_click') {
+                concurrentClicks++;
+                maxConcurrentClicks = Math.max(maxConcurrentClicks, concurrentClicks);
+                setTimeout(() => {
+                    concurrentClicks--;
+                    cb && cb({ status: 'success' });
+                }, 40);
+                return;
+            }
+            setTimeout(() => cb && cb({ status: 'success' }), 0);
+        };
+        startBtn.click();
+        resetBtn.click();
+        startBtn.click();
+        await delay(150);
+        assert('content: rapid start/reset/start must NOT spawn concurrent worker loops', maxConcurrentClicks <= 1, {
+            maxConcurrentClicks
+        });
     }
 }
 

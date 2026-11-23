@@ -1,7 +1,7 @@
 # Gemini DOM Breaker & Live Viewport E2E Testing Report
 **Target:** Google Gemini Web App (`gemini.google.com`)  
 **Tab Tested:** Tab 7 (`https://gemini.google.com/app/3fa9eb8debb29ba3?hl=en-IN`) — *"MuleSoft Support Work Anniversary - Google Gemini"*  
-**Extension Under Test:** Gemini Bulk Image Downloader ("Auto-Pilot Pro" v5.0.1)  
+**Extension Under Test:** Gemini Bulk Image Downloader ("Auto-Pilot Pro" v5.0.1; Remediated in v5.1.0 & Hardened in v5.1.1)  
 **Testing Environment:** BrowserOS neo (Session `a2e5d026-e177-46d6-af8d-daa8bf64601e`, Page 7, Retina Display DPR 2.0, Viewport 1488x911)  
 **Date:** 2026-11-23  
 
@@ -249,7 +249,7 @@ All 6 live images on Tab 7 yielded clean, immutable IDs:
 
 ---
 
-## 7. Concrete Recommendations & Fixes for v5.1
+## 7. Concrete Recommendations & Fixes (Implemented in v5.1.0 & Hardened in v5.1.1)
 
 ### 1. Fix `autoScrollScan()` to Target Gemini's Active Scroll Container
 Replace `window.scrollTo` with dynamic scroll container detection:
