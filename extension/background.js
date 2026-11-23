@@ -288,20 +288,41 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 // Organize completed downloads into a per-conversation subfolder.
 // Only touch downloads referred by Gemini; never move unrelated browser downloads.
+function applyDownloadSuggestion(prefix, item, suggest) {
+    const referrer = (item && item.referrer) || '';
+    const mime = (item && item.mime) || '';
+    const name = (item && item.filename || 'image').split(/[\\/]/).pop();
+    // Some Chromium builds (including BrowserOS) omit the referrer for
+    // page-initiated downloads. Only fall back for images while a Gemini
+    // run owns the prefix, so unrelated documents are never moved.
+    const fromGemini = isGeminiReferrer(referrer) || (!referrer && /^image\//i.test(mime));
+    if (!prefix || !fromGemini) {
+        suggest();
+        return;
+    }
+    suggest({ filename: prefix + '/' + name, conflictAction: 'uniquify' });
+}
+
 if (chrome.downloads && chrome.downloads.onDeterminingFilename) {
     chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
-        const referrer = (item && item.referrer) || '';
-        const mime = (item && item.mime) || '';
-        const name = (item && item.filename || 'image').split(/[\\/]/).pop();
-        // Some Chromium builds (including BrowserOS) omit the referrer for
-        // page-initiated downloads. Only fall back for images while a Gemini
-        // run owns the prefix, so unrelated documents are never moved.
-        const fromGemini = isGeminiReferrer(referrer) || (!referrer && /^image\//i.test(mime));
-        if (!downloadPrefix || !fromGemini) {
-            suggest();
+        if (downloadPrefix) {
+            applyDownloadSuggestion(downloadPrefix, item, suggest);
             return;
         }
-        suggest({ filename: downloadPrefix + '/' + name, conflictAction: 'uniquify' });
+        if (chrome.storage && chrome.storage.session) {
+            try {
+                chrome.storage.session.get(['geminiDownloadPrefix'], (res) => {
+                    const prefix = (res && res.geminiDownloadPrefix) || downloadPrefix || '';
+                    if (prefix && !downloadPrefix) downloadPrefix = prefix;
+                    applyDownloadSuggestion(prefix, item, suggest);
+                });
+                return true;
+            } catch (e) {
+                suggest();
+            }
+            return;
+        }
+        suggest();
     });
 }
 

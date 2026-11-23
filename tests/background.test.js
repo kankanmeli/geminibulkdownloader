@@ -7,6 +7,7 @@ const check = (n, c, e) => { if (c) { pass++; console.log('PASS', n); } else { f
 const rec = { attach: 0, send: [], detach: 0, badgeText: [], badgeColor: [], suggest: [], showFolder: 0, search: [] };
 let onMessage, onDetachFn, onFilenameFn, onRemovedFn, onUpdatedFn, onCreatedFn, attachError = null;
 
+const sessionStore = {};
 global.chrome = {
   runtime: { onMessage: { addListener(fn) { onMessage = fn; } }, lastError: null },
   debugger: {
@@ -25,7 +26,7 @@ global.chrome = {
     onCreated: { addListener(fn) { onCreatedFn = fn; } },
     onDeterminingFilename: { addListener(fn) { onFilenameFn = fn; } }
   },
-  storage: { session: { get(k, cb) { cb({}); }, set(o, cb) { if (cb) cb(); } } },
+  storage: { session: { get(k, cb) { cb(sessionStore); }, set(o, cb) { Object.assign(sessionStore, o); if (cb) cb(); } } },
   tabs: {
     onRemoved: { addListener(fn) { onRemovedFn = fn; } },
     onUpdated: { addListener(fn) { onUpdatedFn = fn; } }
@@ -117,6 +118,13 @@ check('prefix with trailing dots/spaces accepted', r.resp && r.resp.status === '
 let winSuggested;
 await new Promise(res => { onFilenameFn({ filename: 'C:\\Users\\x\\Downloads\\image.png', referrer: 'https://gemini.google.com/app/x' }, (o) => { winSuggested = o; res(); }); });
 check('trailing dots/spaces stripped in subfolder', winSuggested && winSuggested.filename === 'Windows Chat/image.png', winSuggested);
+
+// worker restart: onDeterminingFilename restores prefix from session storage
+let coldSuggested;
+await new Promise(res => {
+  onFilenameFn({ filename: 'C:\\Users\\x\\Downloads\\cold.png', referrer: 'https://gemini.google.com/app/x' }, (o) => { coldSuggested = o; res(); });
+});
+check('worker cold start restores prefix from session storage', coldSuggested && coldSuggested.filename === 'Windows Chat/cold.png', coldSuggested);
 
 // open folder
 r = await send({ command: 'open_downloads_folder' });
