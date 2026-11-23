@@ -36,9 +36,9 @@ A Chrome Extension (Manifest V3) that bulk-downloads high-resolution images from
 
 🛠️ Installation
 
-1. Clone/download this folder.
+1. Clone/download this repository.
 2. Open chrome://extensions and enable Developer mode.
-3. Click "Load unpacked" and select this folder.
+3. Click "Load unpacked" and select the `extension/` subfolder (clean and lightweight, ~86 KB).
 
 📖 How to use
 

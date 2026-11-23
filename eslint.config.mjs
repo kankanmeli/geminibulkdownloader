@@ -1,10 +1,12 @@
 export default [
   {
-    files: ['*.js'],
+    files: ['extension/*.js', 'scripts/*.js', 'tests/*.js'],
     languageOptions: {
       ecmaVersion: 2021,
       sourceType: 'script',
       globals: {
+        __dirname: 'readonly',
+        global: 'readonly',
         chrome: 'readonly',
         GeminiBulkUtils: 'readonly',
         module: 'readonly',

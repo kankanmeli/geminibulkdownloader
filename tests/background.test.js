@@ -32,7 +32,7 @@ global.chrome = {
   }
 };
 
-require(path.join(ROOT, 'background.js'));
+require(path.join(ROOT, 'extension', 'background.js'));
 check('listener registered', typeof onMessage === 'function');
 
 function send(req, sender = { tab: { id: 42 } }) {

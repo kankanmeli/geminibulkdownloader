@@ -7,7 +7,7 @@
 - `npm run test:integration` — jsdom DOM/queue tests for `content.js`.
 - `npm run typecheck` — TypeScript `checkJs` for `utils.js` + unit tests.
 - `npm run lint` — ESLint (flat config).
-- `node --check content.js background.js utils.js` — syntax.
+- `node --check extension/content.js extension/background.js extension/utils.js` — syntax.
 - CI runs unit/background/integration tests, lint, and typecheck on push/PR.
 
 ## Manual (Chrome)

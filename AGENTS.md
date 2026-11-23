@@ -10,6 +10,7 @@ Last updated: 2026-11-23 (v5.0.1).
 - **Branch:** `main` (no tags/releases yet)
 - **Owner:** `kankanmeli` (personal GitHub)
 - **Local folder (sole working dir):** `/Users/akankanmeli/Downloads/projects/Gemini Bulk Image downloader/`
+- **Extension unpacked directory:** `/Users/akankanmeli/Downloads/projects/Gemini Bulk Image downloader/extension/` (~86 KB)
 - **Version:** 5.0.1 (manifest + package.json kept in sync via `npm run sync-version`)
 
 ## 2. What it does
@@ -18,14 +19,17 @@ Bulk-downloads high-resolution images from Google Gemini chats and the "My Stuff
 ## 3. File map
 | File | Purpose |
 |---|---|
-| `manifest.json` | MV3 config. Permissions: `activeTab`, `debugger`, `storage`, `downloads`. Content scripts: `utils.js`, `content.js`. Action + icons. |
-| `background.js` | Service worker: debugger attach/click/key (Escape), badge state, `check_downloaded` (chrome.downloads.search), `set_download_prefix` + `onDeterminingFilename` folder organization, open downloads folder, detach, tab cleanup. |
-| `content.js` | UI panel + queue engine: scan, normal queue, gallery queue, selection mode, rich stats, i18n, SPA handling, low-res detection, dedupe, toast, reset. |
-| `utils.js` | Pure helpers (formatTime, backoffDelay, storageKey, imageKey, pruneKeys, isDownloadLabel, isTerminalState). Loaded before content.js; also Node-requireable. |
+| `extension/` | **Standalone unpacked extension folder loaded into Chrome (~86 KB).** |
+| `extension/manifest.json` | MV3 config. Permissions: `activeTab`, `debugger`, `storage`, `downloads`. Content scripts: `utils.js`, `content.js`. Action + icons. |
+| `extension/background.js` | Service worker: debugger attach/click/key (Escape), badge state, `check_downloaded` (chrome.downloads.search), `set_download_prefix` + `onDeterminingFilename` folder organization, open downloads folder, detach, tab cleanup. |
+| `extension/content.js` | UI panel + queue engine: scan, normal queue, gallery queue, selection mode, rich stats, i18n, SPA handling, low-res detection, dedupe, toast, reset. |
+| `extension/utils.js` | Pure helpers (formatTime, backoffDelay, storageKey, imageKey, pruneKeys, isDownloadLabel, isTerminalState). Loaded before content.js; also Node-requireable. |
+| `extension/icons/` | 16/48/128 PNG icons. |
 | `tests/utils.test.js` | Node unit tests for pure helpers. |
-| `icons/` | 16/48/128 PNG icons. |
-| `scripts/sync-version.js` | Copies package.json version into manifest.json. |
-| `.github/workflows/ci.yml` | CI: npm install, test, lint. |
+| `tests/background.test.js` | Mocked Chrome service-worker tests. |
+| `tests/integration.test.js` | JSDOM content-script and queue tests. |
+| `scripts/sync-version.js` | Copies package.json version into extension/manifest.json. |
+| `.github/workflows/ci.yml` | CI: npm install, test, lint, typecheck. |
 | `README.md` | User-facing docs. |
 | `TESTING.md` | Manual + automated test checklist. |
 | `CHANGELOG.md` | Version history. |

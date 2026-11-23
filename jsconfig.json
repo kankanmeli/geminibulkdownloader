@@ -11,6 +11,6 @@
     "strict": false,
     "types": ["node"]
   },
-  "include": ["utils.js", "tests/utils.test.js", "types/**/*.d.ts"],
-  "exclude": ["node_modules", "content.js", "background.js", "eslint.config.mjs"]
+  "include": ["extension/utils.js", "tests/utils.test.js", "types/**/*.d.ts"],
+  "exclude": ["node_modules", "extension/content.js", "extension/background.js", "eslint.config.mjs"]
 }

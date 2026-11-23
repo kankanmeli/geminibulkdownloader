@@ -1,5 +1,5 @@
 const assert = require('assert');
-const U = require('../utils.js');
+const U = require('../extension/utils.js');
 
 function test(name, fn) {
     try { fn(); console.log('PASS', name); }

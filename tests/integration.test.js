@@ -67,8 +67,8 @@ function makeDom(html, opts = {}) {
   let fakeNow = 0;
   w.Date.now = () => (fakeNow += 250);
   w.chrome = makeChrome(w);
-  w.eval(fs.readFileSync(path.join(ROOT, 'utils.js'), 'utf8'));
-  w.eval(fs.readFileSync(path.join(ROOT, 'content.js'), 'utf8'));
+  w.eval(fs.readFileSync(path.join(ROOT, 'extension', 'utils.js'), 'utf8'));
+  w.eval(fs.readFileSync(path.join(ROOT, 'extension', 'content.js'), 'utf8'));
   return w;
 }
 
